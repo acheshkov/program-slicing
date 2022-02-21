@@ -1,0 +1,1 @@
+git+https://github.com/acheshkov/program-graphs@master#egg=program_graphs
