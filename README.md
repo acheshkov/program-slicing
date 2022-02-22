@@ -13,14 +13,14 @@ java_code = '''
 '''
 
 adg = parse_java(java_code)
-for _, _, _, line_range, _ in gen_block_slices(adg, [mk_max_ncss_filter(10, 0)]):
+for _, _, _, line_range, _ in gen_block_slices(adg):
     print(line_range)
 ```
 
 Expected output (up to ordering):
 ```bash
-(3, 3)
 (1, 1)
+(3, 3)
 (1, 4)
 (2, 4)
 ```
