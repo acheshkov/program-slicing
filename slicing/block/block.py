@@ -271,23 +271,6 @@ def gen_block_slices_from_single_node(node: NodeID, state: State, filters: List[
         counter += 1
 
 
-# def ncss(g: ADG, nodes: List[NodeID] = []) -> Set[int]:
-#     if len(nodes) == 0:
-#         nodes = list(g.nodes())
-#     node_attributes = nx.get_node_attributes(g, 'ast_node')
-#     lines = set()
-#     for n in nodes:
-#         if node_attributes.get(n, None) is None:
-#             continue
-#         if node_attributes[n].type == 'program':
-#             continue
-#         if node_attributes[n].type == 'comment':
-#             continue
-#         lines.add(node_attributes[n].start_point[0])
-
-#     return lines
-
-
 def get_entry_candidates_for_node(node: NodeID, ast: ADG, cfg: ADG) -> Set[NodeID]:
     entries: Set[NodeID] = set()
     ast_node = ast.nodes[node].get('ast_node')
@@ -318,7 +301,7 @@ def get_entry_candidates(state: State) -> Set[NodeID]:
     return entry_candidates
 
 
-def mk_max_ncss_filter(max_ncss: int = 50, min_ncss: int = 0) -> BlockSliceFilter:
+def mk_max_min_ncss_filter(max_ncss: int = 50, min_ncss: int = 0) -> BlockSliceFilter:
     def line_size_filter(bs: BlockSlice, state: State) -> FilterResult:
         bs_line_size = block_slice_line_size(bs)
         if bs_line_size is None:
