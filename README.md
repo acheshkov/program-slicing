@@ -3,7 +3,7 @@
 
 ```python
 from program_graphs.adg import parse_java
-from slicing.block.block import gen_block_slices, mk_max_ncss_filter
+from slicing.block.block import gen_block_slices
 
 java_code = '''
     int a = 1;
