@@ -83,8 +83,22 @@ class TestBlockSlice(TestCase):
         self.assertIn([1, 2, 3, 4], bss)
         self.assertNotIn([1, 2], bss)
 
+    def test_block_slice_no_repetitions(self) -> None:
+        code = """
+            int a = 1;
+            for (;;){
+                stmt();
+            }
+        """
+        adg = parse(code)
+        bss = [sorted(block_slice_lines(adg, bs)) for bs in gen_block_slices(adg)]
+        self.assertIn([1], bss)
+        self.assertIn([3], bss)
+        self.assertIn([2, 3, 4], bss)
+        self.assertIn([1, 2, 3, 4], bss)
+        self.assertEqual(len(bss), 4)
+
     def test_count_ncss(self) -> None:
-        # adg = parse(code)
         comment_lines = count_ncss((0, 9), {2, 3, 4})
         self.assertEqual(comment_lines, 7)
 

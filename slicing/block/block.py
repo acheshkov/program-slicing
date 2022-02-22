@@ -2,11 +2,9 @@ from collections import defaultdict
 from program_graphs.adg.adg import ADG  # type: ignore
 from tree_sitter import Language, Parser  # type: ignore
 from program_graphs.types import ASTNode, NodeID  # type: ignore
-import networkx as nx  # type: ignore
 from typing import Callable, List, Mapping, Iterator, Optional, Tuple, Set, Dict
 from itertools import chain
 from enum import Enum
-# from program_graphs.slicing.all_paths import only_full_paths_from_node
 
 Graph = List[NodeID]
 Path = List[NodeID]
@@ -78,14 +76,39 @@ def mk_block_slice(node: NodeID, state: State) -> Optional[BlockSlice]:
         state.stops[node] = True
         return None
 
+    more_nodes: List[NodeID] = safe_cfg_continuation(state.cfg, mb_exit_node)
+    if len(more_nodes) > 0:
+        syntax_ancestors |= set(more_nodes)
+        mb_exit_node = more_nodes[-1]
+
     entry_node = node
-    exit_node = mb_exit_node
+    exit_node: NodeID = mb_exit_node
     block_slice_line_range = get_occupied_line_range(state.ast, node)
     comment_and_blank_lines: Set[int] = find_blank_and_full_comment_lines(state.ast, node)
     block_slice_size = count_ncss(block_slice_line_range, comment_and_blank_lines)
     bs = syntax_ancestors, entry_node, exit_node, block_slice_line_range, block_slice_size
     state.memory[node] = bs
     return bs
+
+
+def safe_cfg_continuation(cfg: ADG, node: NodeID) -> List[NodeID]:
+    ''' Iteratevely take non-AST CFG successors while in-degree = 1 and out-degree <= 1 '''
+    if cfg.out_degree(node) == 0:
+        return []
+    assert cfg.out_degree(node) == 1
+    [current_node] = cfg.successors(node)
+    cfg_continuation = []
+    while current_node is not None:
+        if cfg.nodes[current_node].get('ast_node', None) is not None:
+            break
+        if cfg.in_degree(current_node) != 1:
+            break
+        if cfg.out_degree(current_node) > 1:
+            break
+        cfg_continuation.append(current_node)
+        current_node = next(cfg.successors(current_node), None)
+
+    return cfg_continuation
 
 
 def traverse_leafs_tree_sitter(node: ASTNode) -> Iterator[ASTNode]:
@@ -248,21 +271,21 @@ def gen_block_slices_from_single_node(node: NodeID, state: State, filters: List[
         counter += 1
 
 
-def ncss(g: ADG, nodes: List[NodeID] = []) -> Set[int]:
-    if len(nodes) == 0:
-        nodes = list(g.nodes())
-    node_attributes = nx.get_node_attributes(g, 'ast_node')
-    lines = set()
-    for n in nodes:
-        if node_attributes.get(n, None) is None:
-            continue
-        if node_attributes[n].type == 'program':
-            continue
-        if node_attributes[n].type == 'comment':
-            continue
-        lines.add(node_attributes[n].start_point[0])
+# def ncss(g: ADG, nodes: List[NodeID] = []) -> Set[int]:
+#     if len(nodes) == 0:
+#         nodes = list(g.nodes())
+#     node_attributes = nx.get_node_attributes(g, 'ast_node')
+#     lines = set()
+#     for n in nodes:
+#         if node_attributes.get(n, None) is None:
+#             continue
+#         if node_attributes[n].type == 'program':
+#             continue
+#         if node_attributes[n].type == 'comment':
+#             continue
+#         lines.add(node_attributes[n].start_point[0])
 
-    return lines
+#     return lines
 
 
 def get_entry_candidates_for_node(node: NodeID, ast: ADG, cfg: ADG) -> Set[NodeID]:
@@ -276,12 +299,12 @@ def get_entry_candidates_for_node(node: NodeID, ast: ADG, cfg: ADG) -> Set[NodeI
         if len(exit_nodes) == 1:
             cf_succesors = get_cfg_successors(cfg, exit_nodes[0])
             assert len(cf_succesors) == 1
-            entries |= cf_succesors
+            entries |= {n for n in cf_succesors if cfg.nodes[n].get('ast_node') is not None}
 
     if ast_node.type in ['block', 'program']:
         cf_succesors = get_cfg_successors(cfg, node)
         assert len(cf_succesors) == 1
-        entries |= cf_succesors
+        entries |= {n for n in cf_succesors if cfg.nodes[n].get('ast_node') is not None}
     return entries
 
 
@@ -311,6 +334,5 @@ def mk_max_ncss_filter(max_ncss: int = 50, min_ncss: int = 0) -> BlockSliceFilte
 def gen_block_slices(g: ADG, filters: List[BlockSliceFilter] = []) -> Iterator[BlockSlice]:
     state = State(g)
     entry_candidates = get_entry_candidates(state)
-
     for entry in entry_candidates:
         yield from gen_block_slices_from_single_node(entry, state, filters)
