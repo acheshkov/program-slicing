@@ -1,8 +1,10 @@
 from collections import defaultdict
 from program_graphs.adg.adg import ADG  # type: ignore
 from tree_sitter import Language, Parser  # type: ignore
-from program_graphs.types import ASTNode, NodeID  # type: ignore
+from program_graphs.types import NodeID  # type: ignore
 from typing import Callable, List, Mapping, Iterator, Optional, Tuple, Set, Dict
+from slicing.block.utils import traverse_leafs_tree_sitter
+from slicing.block.listing_map import mk_listing_pixel_map, ListingMap, is_line_empty_left, is_line_empty_right, RowCol
 from itertools import chain
 from enum import Enum
 
@@ -22,19 +24,40 @@ def mk_parser() -> Parser:
 
 BlockSliceEntry = int
 BlockSliceExit = int
-LineRange = Tuple[int, int]
+LineRange = Tuple[RowCol, RowCol]
 BlockSliceLineRange = Optional[LineRange]
 BlockSliceSize = int
 BlockSlice = Tuple[Set[NodeID], BlockSliceEntry, BlockSliceExit, BlockSliceLineRange, BlockSliceSize]
 
 
+def get_start_line(lr: LineRange) -> int:
+    return lr[0][0]
+
+
+def get_end_line(lr: LineRange) -> int:
+    return lr[1][0]
+
+
+def get_bs_range(bs: BlockSlice) -> BlockSliceLineRange:
+    return bs[-2]
+
+
+def block_slice_line_range_less_or_equal(bs1: BlockSlice, bs2: BlockSlice) -> bool:
+    r1 = get_bs_range(bs1)
+    r2 = get_bs_range(bs2)
+    if r1 is None or r2 is None:
+        return True
+    return get_end_line(r1) <= get_start_line(r2)
+
+
 class State:
-    def __init__(self, adg: ADG) -> None:
+    def __init__(self, adg: ADG, row_col_map: ListingMap) -> None:
         self.cfg = adg.to_cfg()
         self.cdg = adg.to_cdg()
         self.ddg = adg.to_ddg()
         self.ast = adg.to_ast()
         self.adg = adg
+        self.row_col_map = row_col_map
 
         self.stops: Dict[NodeID, bool] = defaultdict(bool)
         self.memory: Dict[NodeID, Optional[BlockSlice]] = defaultdict(lambda: None)
@@ -65,6 +88,7 @@ def combine_block_slices(bs1: BlockSlice, bs2: BlockSlice) -> BlockSlice:
 
 def mk_block_slice(node: NodeID, state: State) -> Optional[BlockSlice]:
     if state.stops[node] is True:
+        # print('stop')
         return None
     if state.memory[node] is not None:
         return state.memory[node]
@@ -73,6 +97,7 @@ def mk_block_slice(node: NodeID, state: State) -> Optional[BlockSlice]:
     mb_exit_node: Optional[BlockSliceExit] = check_validity_cf(state.cfg, syntax_ancestors)
 
     if mb_exit_node is None:
+        # print('exit is not found for node', node, syntax_ancestors)
         state.stops[node] = True
         return None
 
@@ -84,6 +109,14 @@ def mk_block_slice(node: NodeID, state: State) -> Optional[BlockSlice]:
     entry_node = node
     exit_node: NodeID = mb_exit_node
     block_slice_line_range = get_occupied_line_range(state.ast, node)
+    # if block_slice_line_range is not None:
+    #     start_point, end_point = block_slice_line_range
+    #     if not is_line_empty_left(state.row_col_map, start_point):
+    #         print('share the same first line', node, syntax_ancestors)
+    #         return None
+    #     # if not is_line_empty_right(state.row_col_map, end_point):
+    #         # print('share the same last line')
+    #         # return None
     comment_and_blank_lines: Set[int] = find_blank_and_full_comment_lines(state.ast, node)
     block_slice_size = count_ncss(block_slice_line_range, comment_and_blank_lines)
     bs = syntax_ancestors, entry_node, exit_node, block_slice_line_range, block_slice_size
@@ -111,30 +144,17 @@ def safe_cfg_continuation(cfg: ADG, node: NodeID) -> List[NodeID]:
     return cfg_continuation
 
 
-def traverse_leafs_tree_sitter(node: ASTNode) -> Iterator[ASTNode]:
-    # if node is None: return
-    if len(node.children) == 0:
-        yield node
-    for child in node.children:
-        yield from traverse_leafs_tree_sitter(child)
-
-# def count_comment_and_empty_lines_in_range(line_range: Tuple[int, int], ) -> BlockSliceSize:
-#     ast_node = ast.nodes[node].get('ast_node', None)
-#     if ast_node is None:
-#         return 0
-#     return count_ncss_tree_sitter(ast_node)
-
-# def count_ncss_tree_sitter(ast_node: ASTNode) -> BlockSliceSize:
-#     leafs = traverse_leafs_tree_sitter(ast_node)
-#     leafs_without_comments = [leaf.start_point[0] for leaf in leafs if leaf.type != 'comment']
-#     return len(set(leafs_without_comments))
+def ncss_from_node(ast: ADG, node: NodeID) -> int:
+    block_slice_line_range = get_occupied_line_range(ast, node)
+    comment_and_blank_lines: Set[int] = find_blank_and_full_comment_lines(ast, node)
+    block_slice_size = count_ncss(block_slice_line_range, comment_and_blank_lines)
+    return block_slice_size
 
 
 def count_ncss(line_range: BlockSliceLineRange, comment_and_lines: Set[int]) -> BlockSliceSize:
     if line_range is None:
         return 0
-    (s, e) = line_range
-    lines = set(range(s, e + 1))
+    lines = set(range(get_start_line(line_range), get_end_line(line_range) + 1))
     lines = lines - comment_and_lines
     return len(lines)
 
@@ -155,12 +175,13 @@ def get_occupied_line_range(ast: ADG, node: NodeID) -> BlockSliceLineRange:
     ast_node = ast.nodes[node].get('ast_node', None)
     if ast_node is None:
         return None
-    return ast_node.start_point[0], ast_node.end_point[0]
+    return ast_node.start_point, ast_node.end_point
 
 
 def check_validity_cf(cfg: ADG, nodes: Set[NodeID]) -> Optional[BlockSliceExit]:
     # check-1: one or zero CF entries from outside
     # check-2: one or zero CF exits to outside
+    # check-3: if there are return statements the main entry also should be among nodes
     # combined with block-slices's exit node search
     cf_entries = 0
     cf_exits = 0
@@ -168,7 +189,8 @@ def check_validity_cf(cfg: ADG, nodes: Set[NodeID]) -> Optional[BlockSliceExit]:
     for n in nodes:
         if cfg.nodes.get(n) is None:
             continue
-        edges_out_out = [1 for node_to in cfg.successors(n,) if node_to not in nodes]
+
+        edges_out_out = [1 for node_to in cfg.successors(n) if node_to not in nodes]
         cf_exits += len(edges_out_out)
         cf_entries += len([1 for node_from in cfg.predecessors(n) if node_from not in nodes])
         if cf_entries > 1 or cf_exits > 1:
@@ -178,6 +200,8 @@ def check_validity_cf(cfg: ADG, nodes: Set[NodeID]) -> Optional[BlockSliceExit]:
 
     if len(bs_exit_candidates) == 0 and len(nodes) == 1:
         return list(nodes)[0]  # type: ignore
+    # if return_counter > 0 and cfg.get_exit_node() not in nodes:
+    #     return None
     assert len(bs_exit_candidates) == 1
     return bs_exit_candidates[0]  # type: ignore
 
@@ -209,6 +233,8 @@ def next_block_slice(block_slice: BlockSlice, state: State) -> Optional[BlockSli
     bs = mk_block_slice(next_node_cfg, state)
     if bs is None:
         return None
+    if not block_slice_line_range_less_or_equal(block_slice, bs):
+        return None
     return combine_block_slices(block_slice, bs)
 
 
@@ -232,11 +258,11 @@ def block_slice_line_size(bs: BlockSlice) -> Optional[int]:
     return size
 
 
-def block_slice_lines(g: ADG, bs: BlockSlice) -> Set[int]:
+def block_slice_lines(bs: BlockSlice) -> Set[int]:
     _, _, _, line_range, _ = bs
     if line_range is None:
         return set()
-    (s, e) = line_range
+    (s, e) = get_start_line(line_range), get_end_line(line_range)
     return set(range(s, e + 1))
 
 
@@ -255,9 +281,11 @@ def gen_block_slices_from_single_node(node: NodeID, state: State, filters: List[
     bs = mk_block_slice(node, state)
     counter = 0
     while bs is not None:
+        # print("bs: ", bs)
         nodes, _, _, _, _ = bs
         # print('next slice has length', len(nodes))
         filter_result = combine_filters(bs, state, filters)
+        # print("filter_result", filter_result)
         if filter_result == FilterResult.STOP:
             break
         if filter_result == FilterResult.CONTINUE:
@@ -266,17 +294,23 @@ def gen_block_slices_from_single_node(node: NodeID, state: State, filters: List[
 
         if check_dd(state.ddg, nodes):
             yield bs
-
+        # print('DD check is not passed', nodes)
         bs = next_block_slice(bs, state)
         counter += 1
 
 
 def get_entry_candidates_for_node(node: NodeID, ast: ADG, cfg: ADG) -> Set[NodeID]:
+    tree_sitter_block_nodes = [
+        'if_statement', 'for_statement', 'while_statement', 'do_statement', 'enhanced_for_statement',
+        'switch_expression', 'try_statement', 'try_with_resources_statement'
+    ]
     entries: Set[NodeID] = set()
     ast_node = ast.nodes[node].get('ast_node')
     if ast_node is None:
         return set()
-    if ast_node.type in ['if_statement', 'for_statement']:
+    if ast_node.type == 'local_variable_declaration':
+        entries.add(node)
+    if ast_node.type in tree_sitter_block_nodes:
         entries.add(node)
         exit_nodes = [n for (_, n, exit) in ast.out_edges(node, data='exit') if exit is True]
         if len(exit_nodes) == 1:
@@ -286,7 +320,8 @@ def get_entry_candidates_for_node(node: NodeID, ast: ADG, cfg: ADG) -> Set[NodeI
 
     if ast_node.type in ['block', 'program']:
         cf_succesors = get_cfg_successors(cfg, node)
-        assert len(cf_succesors) == 1
+        # if len(cf_succesors) > 1:
+        #     return entries
         entries |= {n for n in cf_succesors if cfg.nodes[n].get('ast_node') is not None}
     return entries
 
@@ -298,7 +333,20 @@ def get_entry_candidates(state: State) -> Set[NodeID]:
         # if ast_node is None: continue
         entry_candidates |= get_entry_candidates_for_node(node, state.ast, state.cfg)
 
+    # print("entry_candidates", entry_candidates)
     return entry_candidates
+
+
+def shared_line_filter(bs: BlockSlice, state: State) -> FilterResult:
+    mb_line_range = get_bs_range(bs)
+    if mb_line_range is None:
+        return FilterResult.GOOD
+    start_point, end_point = mb_line_range
+    if not is_line_empty_left(state.row_col_map, start_point):
+        return FilterResult.STOP
+    if not is_line_empty_right(state.row_col_map, end_point):
+        return FilterResult.CONTINUE
+    return FilterResult.GOOD
 
 
 def mk_max_min_ncss_filter(max_ncss: int = 50, min_ncss: int = 0) -> BlockSliceFilter:
@@ -315,7 +363,10 @@ def mk_max_min_ncss_filter(max_ncss: int = 50, min_ncss: int = 0) -> BlockSliceF
 
 
 def gen_block_slices(g: ADG, filters: List[BlockSliceFilter] = []) -> Iterator[BlockSlice]:
-    state = State(g)
+    ast = g.nodes[g.get_entry_node()].get('ast_node')
+    row_col_map = mk_listing_pixel_map(ast)
+    state = State(g, row_col_map)
     entry_candidates = get_entry_candidates(state)
     for entry in entry_candidates:
-        yield from gen_block_slices_from_single_node(entry, state, filters)
+        # print('start from node', entry)
+        yield from gen_block_slices_from_single_node(entry, state, filters + [shared_line_filter])

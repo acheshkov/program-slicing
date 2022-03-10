@@ -23,7 +23,7 @@ class TestBlockSlice(TestCase):
             stmt()
         """
         adg = parse(code)
-        state = State(adg)
+        state = State(adg, None)  # type: ignore
         entry_lines: Set[int] = reduce(
             lambda a, b: a | b,
             [get_node_lines(adg, n) for n in get_entry_candidates(state)],
@@ -40,7 +40,7 @@ class TestBlockSlice(TestCase):
             stmt();
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(adg, bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
         self.assertIn([1, 2, 3, 4], bss)
         self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertIn([2], bss)
@@ -61,7 +61,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(adg, bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
         self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertIn([2], bss)
         self.assertIn([4], bss)
@@ -77,7 +77,7 @@ class TestBlockSlice(TestCase):
             int d = c;
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(adg, bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
         self.assertIn([1], bss)
         self.assertIn([1, 2, 3], bss)
         self.assertIn([1, 2, 3, 4], bss)
@@ -91,15 +91,108 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(adg, bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
         self.assertIn([1], bss)
         self.assertIn([3], bss)
         self.assertIn([2, 3, 4], bss)
         self.assertIn([1, 2, 3, 4], bss)
         self.assertEqual(len(bss), 4)
 
+    def test_block_slice_bad_format(self) -> None:
+        code = """
+            int a = 1;
+            for (;;)
+            {
+                stmt();
+            }
+        """
+        adg = parse(code)
+        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        self.assertIn([1], bss)
+        self.assertIn([4], bss)
+        self.assertIn([2, 3, 4, 5], bss)
+        self.assertIn([1, 2, 3, 4, 5], bss)
+        self.assertEqual(len(bss), 4)
+
+    def test_block_slice_var_declaration(self) -> None:
+        code = """
+            int a = 1;
+            int b = 1;
+        """
+        adg = parse(code)
+        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        self.assertIn([1], bss)
+        self.assertIn([2], bss)
+        self.assertIn([1, 2], bss)
+
+    def test_block_slice_if_else_if_first_line_shared(self) -> None:
+        code = """
+            if () {
+            } else if (){
+            }
+        """
+        adg = parse(code)
+        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        self.assertIn([1, 2, 3], bss)
+        self.assertNotIn([2, 3], bss)
+
+    def test_block_slice_if_else_if_new_line(self) -> None:
+        code = """
+            if () {
+            } else
+                if (){
+                }
+        """
+        adg = parse(code)
+        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        self.assertIn([1, 2, 3, 4], bss)
+        self.assertIn([3, 4], bss)
+
+    def test_block_slice_try_catch(self) -> None:
+        code = """
+            try {
+                stmt;
+            }  catch (Exception e) {
+                stmt;
+            }
+        """
+        adg = parse(code)
+        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        self.assertIn([1, 2, 3, 4, 5], bss)
+        self.assertIn([2], bss)
+        self.assertIn([4], bss)
+        self.assertNotIn([2, 3, 4, 5], bss)
+
+    def test_block_slice_for(self) -> None:
+        code = """
+            for (int i = 0; i < 10; i++){
+                stmt();
+            }
+        """
+        adg = parse(code)
+        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        self.assertIn([1, 2, 3], bss)
+        self.assertIn([2], bss)
+        self.assertNotIn([1, 2], bss)
+
+    def test_block_slice_for_last_line_shared(self) -> None:
+        code = """
+            for (int i = 0; i < 10; i++){
+                stmt();
+            } int x =
+                y + 4;
+        """
+        adg = parse(code)
+        # print(adg)
+        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        # print(bss)
+        self.assertNotIn([1, 2, 3], bss)
+        self.assertIn([1, 2, 3, 4], bss)
+        self.assertIn([2], bss)
+        self.assertNotIn([3, 4], bss)
+
     def test_count_ncss(self) -> None:
-        comment_lines = count_ncss((0, 9), {2, 3, 4})
+        comment_lines = count_ncss(((0, 0), (9, 0)), {2, 3, 4})
         self.assertEqual(comment_lines, 7)
 
     def test_find_comment_lines(self) -> None:
@@ -122,108 +215,108 @@ class TestBlockSlice(TestCase):
 
     def test_get_occupied_line_range_whole_snippet(self) -> None:
         code = """
-            if (){
+        if (){
+            stmt();
+        } else {
                 stmt();
-            } else {
-                 stmt();
-            }"""
+        }"""
         adg = parse(code)
         r = get_occupied_line_range(adg.to_ast(), adg.get_entry_node())
-        self.assertEqual(r, (1, 5))
+        self.assertEqual(r, ((1, 8), (5, 9)))
 
     def test_get_occupied_line_range_whole_snippet_long(self) -> None:
         code = """
-            if
-            ()
-            {
-                stmt();
-            }
-            else
-            {
-                stmt();
-            }"""
+        if
+        ()
+        {
+            stmt();
+        }
+        else
+        {
+            stmt();
+        }"""
         adg = parse(code)
         r = get_occupied_line_range(adg.to_ast(), adg.get_entry_node())
-        self.assertEqual(r, (1, 9))
+        self.assertEqual(r, ((1, 8), (9, 9)))
 
     def test_get_occupied_line_range_whole_snippet_with_comments(self) -> None:
         code = """
-            // comment
-            if (){
-                /*
-                    Multiline comment
-                */
+        // comment
+        if (){
+            /*
+                Multiline comment
+            */
+            stmt();
+        } else {
                 stmt();
-            } else {
-                 stmt();
-            }"""
+        }"""
         adg = parse(code)
         r = get_occupied_line_range(adg.to_ast(), adg.get_entry_node())
-        self.assertEqual(r, (1, 9))
+        self.assertEqual(r, ((1, 8), (9, 9)))
 
     def test_ncss_whole_snippet_with_multiline_statement(self) -> None:
         code = """
-            if (){
-                a = b +
-                    c;
-            }"""
+        if (){
+            a = b +
+                c;
+        }"""
         adg = parse(code)
         r = get_occupied_line_range(adg.to_ast(), adg.get_entry_node())
-        self.assertEqual(r, (1, 4))
+        self.assertEqual(r, ((1, 8), (4, 9)))
 
     def test_get_occupied_line_range_multiline_single_statement(self) -> None:
         code = """
-            fun(
-                a,
-                b,
-                c
-            );"""
+        fun(
+            a,
+            b,
+            c
+        );"""
         adg = parse(code)
         r = get_occupied_line_range(adg.to_ast(), adg.get_entry_node())
-        self.assertEqual(r, (1, 5))
+        self.assertEqual(r, ((1, 8), (5, 10)))
 
     def test_get_occupied_line_range_with_one_line_multiple_stmts(self) -> None:
         code = """
-            if (){
-                int a = 4; stmt();
-            }"""
+        if (){
+            int a = 4; stmt();
+        }"""
         adg = parse(code)
         r = get_occupied_line_range(adg.to_ast(), adg.get_entry_node())
-        self.assertEqual(r, (1, 3))
+        self.assertEqual(r, ((1, 8), (3, 9)))
 
     def test_get_occupied_line_range(self) -> None:
         code = """
-            if (){
-                int a = 4;
-            }
+        if (){
+            int a = 4;
+        }
         """
         adg = parse(code)
         [if_node] = [node for node, name in adg.nodes(data='name') if name == 'if']
         r = get_occupied_line_range(adg.to_ast(), if_node)
-        self.assertEqual(r, (1, 3))
+        self.assertEqual(r, ((1, 8), (3, 9)))
 
     def test_get_occupied_line_range_no_brackets(self) -> None:
         code = """
-            if ()
-                int a = 4;
+        if ()
+            int a = 4;
 
         """
         adg = parse(code)
         [if_node] = [node for node, name in adg.nodes(data='name') if name == 'if']
         r = get_occupied_line_range(adg.to_ast(), if_node)
-        self.assertEqual(r, (1, 2))
+        self.assertEqual(r, ((1, 8), (2, 22)))
 
     def test_get_occupied_line_range_bad_format(self) -> None:
         code = """
-            if ()
-            {
-                int a = 4;
-                stmt();} stmt();
+        if ()
+        {
+            int a = 4;
+            stmt();} stmt();
         """
         adg = parse(code)
         [if_node] = [node for node, name in adg.nodes(data='name') if name == 'if']
         r = get_occupied_line_range(adg.to_ast(), if_node)
-        self.assertEqual(r, (1, 4))
+        self.assertEqual(r, ((1, 8), (4, 20)))
 
 
 if __name__ == '__main__':
