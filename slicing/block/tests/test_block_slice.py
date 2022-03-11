@@ -1,8 +1,9 @@
 
 from unittest import TestCase, main
 from program_graphs.adg.parser.java.parser import parse  # type: ignore
-from slicing.block.block import gen_block_slices, get_entry_candidates, get_node_lines, block_slice_lines, State
+from slicing.block.block import gen_block_slices, get_entry_candidates, get_node_lines, State
 from slicing.block.block import get_occupied_line_range, count_ncss, find_blank_and_full_comment_lines
+from slicing.block.filters import at_least_one_block_stmt
 from functools import reduce
 from typing import Set
 
@@ -40,7 +41,7 @@ class TestBlockSlice(TestCase):
             stmt();
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
         self.assertIn([1, 2, 3, 4], bss)
         self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertIn([2], bss)
@@ -61,7 +62,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
         self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertIn([2], bss)
         self.assertIn([4], bss)
@@ -77,7 +78,7 @@ class TestBlockSlice(TestCase):
             int d = c;
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
         self.assertIn([1], bss)
         self.assertIn([1, 2, 3], bss)
         self.assertIn([1, 2, 3, 4], bss)
@@ -91,7 +92,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
         self.assertIn([1], bss)
         self.assertIn([3], bss)
         self.assertIn([2, 3, 4], bss)
@@ -107,7 +108,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
         self.assertIn([1], bss)
         self.assertIn([4], bss)
         self.assertIn([2, 3, 4, 5], bss)
@@ -120,7 +121,7 @@ class TestBlockSlice(TestCase):
             int b = 1;
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
         self.assertIn([1], bss)
         self.assertIn([2], bss)
         self.assertIn([1, 2], bss)
@@ -132,7 +133,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
         self.assertIn([1, 2, 3], bss)
         self.assertNotIn([2, 3], bss)
 
@@ -144,9 +145,24 @@ class TestBlockSlice(TestCase):
                 }
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
         self.assertIn([1, 2, 3, 4], bss)
         self.assertIn([3, 4], bss)
+
+    def test_block_slice_at_least_one_block_stmt(self) -> None:
+        code = """
+            stmt;
+            if (){ }
+            stmt;
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, [at_least_one_block_stmt])]
+        self.assertIn([1, 2], bss)
+        self.assertIn([2, 3], bss)
+        self.assertIn([1, 2, 3], bss)
+        self.assertIn([2], bss)
+        self.assertNotIn([1], bss)
+        self.assertNotIn([3], bss)
 
     def test_block_slice_try_catch(self) -> None:
         code = """
@@ -157,7 +173,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
         self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertIn([2], bss)
         self.assertIn([4], bss)
@@ -170,7 +186,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
         self.assertIn([1, 2, 3], bss)
         self.assertIn([2], bss)
         self.assertNotIn([1, 2], bss)
@@ -184,7 +200,7 @@ class TestBlockSlice(TestCase):
         """
         adg = parse(code)
         # print(adg)
-        bss = [sorted(block_slice_lines(bs)) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
         # print(bss)
         self.assertNotIn([1, 2, 3], bss)
         self.assertIn([1, 2, 3, 4], bss)

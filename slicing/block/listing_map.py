@@ -14,8 +14,6 @@ def mk_listing_pixel_map(node: ASTNode) -> ListingMap:
     for n in traverse_leafs_tree_sitter(node):
         [start_row, start_col] = n.start_point
         [end_row, end_col] = n.end_point
-        if start_row != end_row:
-            print(n, n.children)
         if start_row == end_row:
             for c in range(start_col, end_col + 1):
                 listing_map[start_row][c] = True
