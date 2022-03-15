@@ -18,7 +18,7 @@ packages = [
 ]
 
 setup(
-    name="program_slicing",
+    name="pslicing",
     description="Library to do Extract Method refactroting",
     version="0.1",
     packages=packages,

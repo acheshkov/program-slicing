@@ -1,8 +1,8 @@
 from slicing.block.listing_map import ListingMap
 from program_graphs.adg.adg import ADG  # type: ignore
 from collections import defaultdict
-from typing import Dict, Optional
-from slicing.block.declaration import BlockSlice
+from typing import Dict, Optional, Tuple
+from slicing.block.declaration import BlockSlice, BlockSliceState
 
 
 NodeID = int
@@ -18,4 +18,4 @@ class State:
         self.row_col_map = row_col_map
 
         self.stops: Dict[NodeID, bool] = defaultdict(bool)
-        self.memory: Dict[NodeID, Optional[BlockSlice]] = defaultdict(lambda: None)
+        self.memory: Dict[NodeID, Optional[Tuple[BlockSlice, BlockSliceState]]] = defaultdict(lambda: None)

@@ -199,13 +199,67 @@ class TestBlockSlice(TestCase):
                 y + 4;
         """
         adg = parse(code)
-        # print(adg)
         bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
-        # print(bss)
         self.assertNotIn([1, 2, 3], bss)
         self.assertIn([1, 2, 3, 4], bss)
         self.assertIn([2], bss)
         self.assertNotIn([3, 4], bss)
+
+    def test_block_slice_for_update_clause_not_included(self) -> None:
+        code = """
+            stmt;
+            for (expr;expr;stmt){
+                stmt();
+            }
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        self.assertIn([1], bss)
+        self.assertIn([3], bss)
+        self.assertIn([2, 3, 4], bss)
+        self.assertIn([1, 2, 3, 4], bss)
+        self.assertNotIn([2, 3], bss)
+        self.assertNotIn([3, 4], bss)
+
+    def test_block_slice_complete_return(self) -> None:
+        code = """
+            stmt;
+            if (){
+                return;
+            } else {
+                return;
+            }
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        self.assertIn([1], bss)
+        self.assertIn([3], bss)
+        self.assertIn([5], bss)
+        self.assertIn([1, 2, 3, 4, 5, 6], bss)
+        self.assertIn([2, 3, 4, 5, 6], bss)
+
+    def test_block_slice_non_complete_return(self) -> None:
+        code = """
+            stmt;
+            if (){
+                return;
+            } else {
+                stmt;
+            }
+            stmt;
+            stmt;
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        self.assertIn([1], bss)
+        self.assertIn([3], bss)
+        self.assertIn([5], bss)
+        self.assertIn([7], bss)
+        self.assertIn([7, 8], bss)
+        self.assertNotIn([1, 2, 3, 4, 5, 6], bss)
+        self.assertNotIn([1, 2, 3, 4, 5, 6, 7], bss)
+        self.assertIn([2, 3, 4, 5, 6, 7, 8], bss)
+        self.assertIn([1, 2, 3, 4, 5, 6, 7, 8], bss)
 
     def test_count_ncss(self) -> None:
         comment_lines = count_ncss(((0, 0), (9, 0)), {2, 3, 4})

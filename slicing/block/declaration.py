@@ -1,4 +1,5 @@
 from typing import Set, Optional, Tuple
+from enum import IntEnum, Enum
 
 RowCol = Tuple[int, int]
 LineRange = Tuple[RowCol, RowCol]
@@ -7,21 +8,35 @@ BlockSliceSize = int
 NodeID = int
 
 
+class ReturnState(IntEnum):
+    NONE = 1  # there are no return statements
+    INCOMPLETE = 2  # there are return statments but makes slice INVALID
+    COMPLETE = 3  # Every CF path has return
+
+
+class BlockSliceState(Enum):
+    INVALID = 1
+    MAYBE_VALID_FURTHER = 2
+    LAST_TIME_VALID = 3
+    VALID = 4
+
+
 class BlockSlice:
-    def __init__(self, nodes: Set[NodeID], entry: NodeID, exit: NodeID) -> None:
+    def __init__(self, nodes: Set[NodeID], entry: NodeID, exit: Optional[NodeID]) -> None:
         self._nodes: Set[NodeID] = nodes
         self._entry: NodeID = entry
-        self._exit: NodeID = exit
+        self._exit: Optional[NodeID] = exit
         self._line_range: BlockSliceLineRange = None
         self._size: int = 0
         self._has_block_stmt: bool = False
+        self._return_state: ReturnState = ReturnState.NONE
 
     @property
     def nodes(self) -> Set[NodeID]:
         return self._nodes
 
     @property
-    def exit(self) -> NodeID:
+    def exit(self) -> Optional[NodeID]:
         return self._exit
 
     @property
@@ -48,6 +63,14 @@ class BlockSlice:
     def has_block_stmt(self, has_block_stmt: bool) -> None:
         self._has_block_stmt = has_block_stmt
 
+    @property
+    def return_state(self) -> ReturnState:
+        return self._return_state
+
+    @return_state.setter
+    def return_state(self, state: ReturnState) -> None:
+        self._return_state = state
+
     def block_slice_lines(self) -> Set[int]:
         if self._line_range is None:
             return set()
@@ -64,7 +87,7 @@ class BlockSlice:
 def mk_block_slice_ex(
     nodes: Set[NodeID],
     entry_node: NodeID,
-    exit_node: NodeID,
+    exit_node: Optional[NodeID],
     line_range: Optional[LineRange],
     size: int
 ) -> BlockSlice:
@@ -95,4 +118,5 @@ def combine_block_slices(bs1: BlockSlice, bs2: BlockSlice) -> BlockSlice:
     bs.line_range = merge_line_ranges(bs1._line_range, bs2._line_range)
     bs.size = bs1._size + bs2._size
     bs.has_block_stmt = bs1.has_block_stmt or bs2.has_block_stmt
+    bs.return_state = max(bs1.return_state, bs2.return_state)
     return bs
