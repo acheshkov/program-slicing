@@ -54,15 +54,14 @@ def find_all_exits(
     return res
 
 
-def check_entry_single(cfg: ADG, nodes: Set[NodeID]) -> bool:
+def check_entry_single(cfg: nx.DiGraph, nodes: Set[NodeID]) -> bool:
+    ''' Check set of nodes has no more than one external inbound edge'''
     cf_entries = 0
     for n in nodes:
         if cfg.nodes.get(n) is None:
             continue
         for node_from in cfg.predecessors(n):
             if node_from in nodes:
-                continue
-            if cfg.nodes[node_from].get("name") == 'return':
                 continue
             cf_entries += 1
             if cf_entries > 1:
@@ -95,6 +94,7 @@ def check_exits(
     if len(exits) == 0:
         return (None, BlockSliceState.LAST_TIME_VALID, ReturnState.NONE)
     if len(exits) == 1 and exits[0][0] == program_exit:
+        # if sigle exit node and it is an entire program exit
         return (exits[0][0], BlockSliceState.VALID, ReturnState.COMPLETE)
     if len(exits) == 1 and returns_counter == 0:
         return (exits[0][0], BlockSliceState.VALID, ReturnState.NONE)
@@ -112,7 +112,7 @@ def mk_block_slice(node: NodeID, state: State) -> Tuple[Optional[BlockSlice], Bl
         return state.memory[node]  # type: ignore
 
     syntax_ancestors: Set[NodeID] = traverse_all_syntax_dependent(state.ast, node)
-    if not check_entry_single(state.cfg, syntax_ancestors):
+    if not check_entry_single(state.cfg, syntax_ancestors - {state.adg.get_exit_node()}):
         state.stops[node] = True
         return None, BlockSliceState.INVALID
     mb_exit_node, status, return_state = check_exits(node, state.cfg, syntax_ancestors, state.adg.get_exit_node())
@@ -318,3 +318,4 @@ def gen_block_slices(g: ADG, filters: List[BlockSliceFilter] = []) -> Iterator[B
     entry_candidates = get_entry_candidates(state)
     for entry in entry_candidates:
         yield from gen_block_slices_from_single_node(entry, state, filters + [shared_line_filter])
+    
