@@ -25,6 +25,7 @@ def mk_parser() -> Parser:
     parser.set_language(JAVA_LANGUAGE)
     return parser
 
+
 def find_all_exits(
     entry_node: NodeID,
     g: nx.DiGraph,
@@ -68,6 +69,7 @@ def is_return_stmt(node: Optional[ASTNode]) -> bool:
         return False
     return node.type == 'return_statement'  # type: ignore
 
+
 def check_exits(
     entry_node: NodeID,
     cfg: ADG,
@@ -92,6 +94,7 @@ def check_exits(
     if len(non_return_exits) == 1:
         return (non_return_exits[0], BlockSliceState.MAYBE_VALID_FURTHER, ReturnState.INCOMPLETE)
     return (None, BlockSliceState.INVALID, ReturnState.INCOMPLETE)
+
 
 def mk_block_slice(node: NodeID, state: State) -> Tuple[Optional[BlockSlice], BlockSliceState]:
     if state.stops[node] is True:
