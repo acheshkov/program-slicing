@@ -25,16 +25,16 @@ def mk_parser() -> Parser:
     parser.set_language(JAVA_LANGUAGE)
     return parser
 
-
 def find_all_exits(
     entry_node: NodeID,
     g: nx.DiGraph,
     nodes: Set[NodeID],
-    visited: Set[NodeID] = set()
+    visited: Set[NodeID]
 ) -> Set[NodeID]:
     if entry_node in visited:
         return set([])
-    visited = visited | {entry_node}
+    # visited = visited | {entry_node}
+    visited.add(entry_node)
     allowed_moves = [n for n in g.successors(entry_node)]
     if len(allowed_moves) == 0:
         return set([entry_node])
@@ -68,13 +68,12 @@ def is_return_stmt(node: Optional[ASTNode]) -> bool:
         return False
     return node.type == 'return_statement'  # type: ignore
 
-
 def check_exits(
     entry_node: NodeID,
     cfg: ADG,
     nodes: Set[NodeID]
 ) -> Tuple[Optional[NodeID], BlockSliceState, ReturnState]:
-    _exits = find_all_exits(entry_node, cfg, nodes)
+    _exits = find_all_exits(entry_node, cfg, nodes, set())
     exits: List[Tuple[NodeID, bool]] = [(n, is_return_stmt(cfg.nodes[n].get('ast_node'))) for n in _exits]
     returns_counter = 0
     non_return_exits = []
@@ -93,7 +92,6 @@ def check_exits(
     if len(non_return_exits) == 1:
         return (non_return_exits[0], BlockSliceState.MAYBE_VALID_FURTHER, ReturnState.INCOMPLETE)
     return (None, BlockSliceState.INVALID, ReturnState.INCOMPLETE)
-
 
 def mk_block_slice(node: NodeID, state: State) -> Tuple[Optional[BlockSlice], BlockSliceState]:
     if state.stops[node] is True:

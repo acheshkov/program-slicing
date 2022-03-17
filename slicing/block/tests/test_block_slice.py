@@ -178,6 +178,7 @@ class TestBlockSlice(TestCase):
         self.assertIn([1, 2, 3], bss)
         self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertIn([3], bss)
+        self.assertIn([4, 5], bss)
         self.assertIn([3, 4, 5], bss)
         self.assertNotIn([1], bss)
         self.assertNotIn([3, 4], bss)
