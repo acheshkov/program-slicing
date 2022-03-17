@@ -2,7 +2,7 @@ from program_graphs.adg.adg import ADG  # type: ignore
 from tree_sitter import Language, Parser  # type: ignore
 from program_graphs.types import NodeID  # type: ignore
 from typing import List, Mapping, Iterator, Optional, Tuple, Set
-from slicing.block.utils import traverse_leafs_tree_sitter
+from slicing.block.utils import traverse_leafs_tree_sitter, TREE_SITTER_BLOCK_STATEMENTS
 from slicing.block.listing_map import mk_listing_pixel_map
 from itertools import chain
 from slicing.block.declaration import BlockSlice, ReturnState, BlockSliceLineRange, mk_block_slice_ex, combine_block_slices
@@ -17,12 +17,6 @@ Path = List[NodeID]
 Index = int
 PathSearchState = Tuple[List[NodeID], Mapping[NodeID, Index]]
 AllSuccessorGraphs = List[Graph]
-
-
-TREE_SITTER_BLOCK_STATEMENTS = [
-    'if_statement', 'for_statement', 'while_statement', 'do_statement', 'enhanced_for_statement',
-    'switch_expression', 'try_statement', 'try_with_resources_statement'
-]
 
 
 def mk_parser() -> Parser:
@@ -54,13 +48,13 @@ def find_all_exits(
     return res
 
 
-def check_entry_single(cfg: nx.DiGraph, nodes: Set[NodeID]) -> bool:
+def check_entry_single(state: State, nodes: Set[NodeID]) -> bool:
     ''' Check set of nodes has no more than one external inbound edge'''
     cf_entries = 0
     for n in nodes:
-        if cfg.nodes.get(n) is None:
+        if n not in state.cfg_nodes:
             continue
-        for node_from in cfg.predecessors(n):
+        for node_from in state.cfg.predecessors(n):
             if node_from in nodes:
                 continue
             cf_entries += 1
@@ -78,8 +72,7 @@ def is_return_stmt(node: Optional[ASTNode]) -> bool:
 def check_exits(
     entry_node: NodeID,
     cfg: ADG,
-    nodes: Set[NodeID],
-    program_exit: NodeID
+    nodes: Set[NodeID]
 ) -> Tuple[Optional[NodeID], BlockSliceState, ReturnState]:
     _exits = find_all_exits(entry_node, cfg, nodes)
     exits: List[Tuple[NodeID, bool]] = [(n, is_return_stmt(cfg.nodes[n].get('ast_node'))) for n in _exits]
@@ -93,9 +86,6 @@ def check_exits(
 
     if len(exits) == 0:
         return (None, BlockSliceState.LAST_TIME_VALID, ReturnState.NONE)
-    if len(exits) == 1 and exits[0][0] == program_exit:
-        # if sigle exit node and it is an entire program exit
-        return (exits[0][0], BlockSliceState.VALID, ReturnState.COMPLETE)
     if len(exits) == 1 and returns_counter == 0:
         return (exits[0][0], BlockSliceState.VALID, ReturnState.NONE)
     if len(exits) == returns_counter:
@@ -112,10 +102,10 @@ def mk_block_slice(node: NodeID, state: State) -> Tuple[Optional[BlockSlice], Bl
         return state.memory[node]  # type: ignore
 
     syntax_ancestors: Set[NodeID] = traverse_all_syntax_dependent(state.ast, node)
-    if not check_entry_single(state.cfg, syntax_ancestors - {state.adg.get_exit_node()}):
+    if not check_entry_single(state, syntax_ancestors - {state.adg.get_exit_node()}):
         state.stops[node] = True
         return None, BlockSliceState.INVALID
-    mb_exit_node, status, return_state = check_exits(node, state.cfg, syntax_ancestors, state.adg.get_exit_node())
+    mb_exit_node, status, return_state = check_exits(node, state.cfg, syntax_ancestors)
     if status == BlockSliceState.INVALID:
         state.stops[node] = True
         return None, BlockSliceState.INVALID
@@ -126,15 +116,27 @@ def mk_block_slice(node: NodeID, state: State) -> Tuple[Optional[BlockSlice], Bl
             syntax_ancestors |= set(more_nodes)
             mb_exit_node = more_nodes[-1]
 
+    if mb_exit_node == state.adg.get_exit_node():
+        # if block slice ends on PROGRAM's exit
+        return_state = ReturnState.COMPLETE
+
     entry_node = node
     exit_node: NodeID = mb_exit_node
     block_slice_line_range = get_occupied_line_range(state.ast, node)
     comment_and_blank_lines: Set[int] = find_blank_and_full_comment_lines(state.ast, node)
     block_slice_size = count_ncss(block_slice_line_range, comment_and_blank_lines)
-    bs = mk_block_slice_ex(syntax_ancestors, entry_node, exit_node, block_slice_line_range, block_slice_size)
+    bs = mk_block_slice_ex(
+        syntax_ancestors,
+        entry_node,
+        exit_node,
+        block_slice_line_range,
+        block_slice_size,
+        entry_stmt_name=state.ast.nodes[entry_node].get('ast_node').type
+    )
+    # bs.entry_node_name = state.ast.nodes[entry_node].get('name')
     bs.return_state = return_state
-    if state.ast.nodes[node].get('ast_node') is not None:
-        bs.has_block_stmt = state.ast.nodes[node].get('ast_node').type in TREE_SITTER_BLOCK_STATEMENTS
+    # if state.ast.nodes[node].get('ast_node') is not None:
+    #     bs.has_block_stmt = state.ast.nodes[node].get('name') in BLOCK_STATEMENTS
     state.memory[node] = (bs, status)
     return bs, status
 
@@ -149,7 +151,9 @@ def safe_cfg_continuation(cfg: ADG, node: NodeID) -> List[NodeID]:
     while current_node is not None:
         if cfg.nodes[current_node].get('ast_node', None) is not None:
             break
-        if cfg.in_degree(current_node) != 1:
+        inbound_cf_edges = cfg.in_edges(current_node, data='program_return')
+        in_cf_except_return = [_ for (_, _, is_return) in inbound_cf_edges if is_return is not True]
+        if len(in_cf_except_return) != 1:
             break
         if cfg.out_degree(current_node) > 1:
             break
@@ -318,4 +322,3 @@ def gen_block_slices(g: ADG, filters: List[BlockSliceFilter] = []) -> Iterator[B
     entry_candidates = get_entry_candidates(state)
     for entry in entry_candidates:
         yield from gen_block_slices_from_single_node(entry, state, filters + [shared_line_filter])
-    

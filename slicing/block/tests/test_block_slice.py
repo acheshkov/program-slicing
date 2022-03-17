@@ -3,7 +3,7 @@ from unittest import TestCase, main
 from program_graphs.adg.parser.java.parser import parse  # type: ignore
 from slicing.block.block import gen_block_slices, get_entry_candidates, get_node_lines, State
 from slicing.block.block import get_occupied_line_range, count_ncss, find_blank_and_full_comment_lines
-from slicing.block.filters import at_least_one_block_stmt
+from slicing.block.filters import at_least_one_block_stmt, last_or_next_statement_is_control
 from functools import reduce
 from typing import Set
 
@@ -163,6 +163,24 @@ class TestBlockSlice(TestCase):
         self.assertIn([2], bss)
         self.assertNotIn([1], bss)
         self.assertNotIn([3], bss)
+
+    def test_block_slice_last_ast_statement_filter(self) -> None:
+        code = """
+            stmt;
+            stmt;
+            if (){ }
+            stmt;
+            stmt;
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, [last_or_next_statement_is_control])]
+        self.assertIn([1, 2], bss)
+        self.assertIn([1, 2, 3], bss)
+        self.assertIn([1, 2, 3, 4, 5], bss)
+        self.assertIn([3], bss)
+        self.assertIn([3, 4, 5], bss)
+        self.assertNotIn([1], bss)
+        self.assertNotIn([3, 4], bss)
 
     def test_block_slice_try_catch(self) -> None:
         code = """

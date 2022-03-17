@@ -1,15 +1,8 @@
 from slicing.block.declaration import BlockSlice, BlockSliceState
 from slicing.block.listing_map import is_line_empty_left, is_line_empty_right
-# from enum import Enum
+from slicing.block.utils import TREE_SITTER_BLOCK_STATEMENTS
 from typing import Callable, List
 from slicing.block.state import State
-
-
-# class BlockSliceState(Enum):
-#     INVALID = 1
-#     MAYBE_VALID_FURTHER = 2
-#     LAST_TIME_VALID = 3
-#     VALID = 4
 
 
 BlockSliceFilter = Callable[[BlockSlice, State], BlockSliceState]
@@ -52,3 +45,20 @@ def combine_filters(bs: BlockSlice, state: State, filters: List[BlockSliceFilter
         if filter_result == BlockSliceState.MAYBE_VALID_FURTHER:
             return BlockSliceState.MAYBE_VALID_FURTHER
     return BlockSliceState.VALID
+
+
+def last_or_next_statement_is_control(bs: BlockSlice, state: State) -> BlockSliceState:
+    ''' Check the last or nexr statement is a control statement '''
+    if bs.exit_stmt_name in TREE_SITTER_BLOCK_STATEMENTS:
+        return BlockSliceState.VALID
+    exit = bs.exit
+    successors = list(state.cfg.successors(exit))
+    if len(successors) != 1:
+        return BlockSliceState.VALID
+    [successor] = successors
+    mb_ast_node = state.adg.nodes[successor].get('ast_node')
+    if mb_ast_node is None:
+        return BlockSliceState.VALID
+    if mb_ast_node.type in TREE_SITTER_BLOCK_STATEMENTS:
+        return BlockSliceState.VALID
+    return BlockSliceState.MAYBE_VALID_FURTHER

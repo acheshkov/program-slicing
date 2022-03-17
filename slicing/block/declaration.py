@@ -1,5 +1,6 @@
 from typing import Set, Optional, Tuple
 from enum import IntEnum, Enum
+from slicing.block.utils import TREE_SITTER_BLOCK_STATEMENTS
 
 RowCol = Tuple[int, int]
 LineRange = Tuple[RowCol, RowCol]
@@ -30,6 +31,8 @@ class BlockSlice:
         self._size: int = 0
         self._has_block_stmt: bool = False
         self._return_state: ReturnState = ReturnState.NONE
+        self._entry_stmt_name: str = 'None'
+        self._exit_stmt_name: str = 'None'
 
     @property
     def nodes(self) -> Set[NodeID]:
@@ -71,6 +74,22 @@ class BlockSlice:
     def return_state(self, state: ReturnState) -> None:
         self._return_state = state
 
+    @property
+    def entry_stmt_name(self) -> str:
+        return self._entry_stmt_name
+
+    @entry_stmt_name.setter
+    def entry_stmt_name(self, name: str) -> None:
+        self._entry_stmt_name = name
+
+    @property
+    def exit_stmt_name(self) -> str:
+        return self._exit_stmt_name
+
+    @exit_stmt_name.setter
+    def exit_stmt_name(self, name: str) -> None:
+        self._exit_stmt_name = name
+
     def block_slice_lines(self) -> Set[int]:
         if self._line_range is None:
             return set()
@@ -78,9 +97,6 @@ class BlockSlice:
         return set(range(s, e + 1))
 
     def __lt__(self, other: 'BlockSlice') -> bool:
-        # if self.line_range is None or other.line_range is None:
-        #     raise ValueError()
-        #     return True
         return get_end_line(self.line_range) <= get_start_line(other.line_range)  # type: ignore
 
 
@@ -89,11 +105,15 @@ def mk_block_slice_ex(
     entry_node: NodeID,
     exit_node: Optional[NodeID],
     line_range: Optional[LineRange],
-    size: int
+    size: int,
+    entry_stmt_name: str
 ) -> BlockSlice:
     bs = BlockSlice(nodes, entry_node, exit_node)
     bs.line_range = line_range
     bs.size = size
+    bs.entry_stmt_name = entry_stmt_name
+    bs.exit_stmt_name = entry_stmt_name
+    bs.has_block_stmt = entry_stmt_name in TREE_SITTER_BLOCK_STATEMENTS
     return bs
 
 
@@ -118,5 +138,6 @@ def combine_block_slices(bs1: BlockSlice, bs2: BlockSlice) -> BlockSlice:
     bs.line_range = merge_line_ranges(bs1._line_range, bs2._line_range)
     bs.size = bs1._size + bs2._size
     bs.has_block_stmt = bs1.has_block_stmt or bs2.has_block_stmt
+    bs.exit_stmt_name = bs2.exit_stmt_name
     bs.return_state = max(bs1.return_state, bs2.return_state)
     return bs

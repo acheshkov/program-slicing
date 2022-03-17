@@ -16,6 +16,7 @@ class State:
         self.ast = adg.to_ast()
         self.adg = adg
         self.row_col_map = row_col_map
+        self.cfg_nodes = set(self.cfg.nodes)
 
         self.stops: Dict[NodeID, bool] = defaultdict(bool)
         self.memory: Dict[NodeID, Optional[Tuple[BlockSlice, BlockSliceState]]] = defaultdict(lambda: None)
