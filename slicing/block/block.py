@@ -120,7 +120,6 @@ def mk_block_slice(node: NodeID, state: State) -> Tuple[Optional[BlockSlice], Bl
         return None, BlockSliceState.INVALID
     if state.memory[node] is not None:
         return state.memory[node]  # type: ignore
-
     syntax_ancestors: Set[NodeID] = traverse_all_syntax_dependent(state.ast, node)
     if not check_entry_single(state, syntax_ancestors - {state.adg.get_exit_node()}):
         state.stops[node] = True
@@ -221,15 +220,15 @@ def check_dd(state: State, nodes: Set[NodeID]) -> bool:
     # check-1: no more than one unique written variable is used outside (exluding class fields and non-primitive )
     ddg = state.ddg
     only_ddg_nodes = nodes & set(ddg.nodes())
-    declared_vars: Set[VarName] = {var for n in only_ddg_nodes for vars in state.declared_vars[n] for var in vars}
+    # declared_vars: Set[VarName] = {var for n in only_ddg_nodes for var in state.declared_vars[n]}
     vars_used_outside = set()
     for n in only_ddg_nodes:
         for node_to in ddg.successors(n):
             if node_to in only_ddg_nodes:
                 continue
             for var_name in ddg.edges[n, node_to]['vars']:
-                if var_name in declared_vars:
-                    return False  # we can't extract and then duplicate declaration
+                # if var_name in declared_vars:
+                #     return False  # we can't extract and then duplicate declaration
                 if var_name in state.vars_not_need_to_return:
                     continue  # these vars not need to return
                 vars_used_outside.add(var_name)
@@ -302,7 +301,6 @@ def bs_gen_l2(node: NodeID, state: State, filters: List[BlockSliceFilter]) -> It
 
 def bs_gen_l3(node: NodeID, state: State, filters: List[BlockSliceFilter]) -> Iterator[BlockSlice]:
     for bs in bs_gen_l2(node, state, filters):
-        # print("bs_gen_l3:", bs.line_range)
         nodes = bs.nodes
         if check_dd(state, nodes):
             yield bs
