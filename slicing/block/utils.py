@@ -4,7 +4,7 @@ from typing import Iterator
 
 TREE_SITTER_BLOCK_STATEMENTS = [
     'if_statement', 'for_statement', 'while_statement', 'do_statement', 'enhanced_for_statement',
-    'switch_expression', 'try_statement', 'try_with_resources_statement'
+    'switch_expression', 'try_statement', 'try_with_resources_statement', 'synchronized_statement', 'labeled_statement'
 ]
 
 

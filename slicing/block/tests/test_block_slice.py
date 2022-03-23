@@ -1,9 +1,10 @@
 
 from unittest import TestCase, main
 from program_graphs.adg.parser.java.parser import parse  # type: ignore
-from slicing.block.block import gen_block_slices, get_entry_candidates, get_node_lines, State
+from slicing.block.block import gen_block_slices, get_entry_candidates, get_node_lines, mk_declared_variables_table
 from slicing.block.block import get_occupied_line_range, count_ncss, find_blank_and_full_comment_lines
 from slicing.block.filters import at_least_one_block_stmt, last_or_next_statement_is_control
+from slicing.block.state import State
 from functools import reduce
 from typing import Set
 
@@ -24,7 +25,7 @@ class TestBlockSlice(TestCase):
             stmt()
         """
         adg = parse(code)
-        state = State(adg, None)  # type: ignore
+        state = State(adg, None, None, {}, {})  # type: ignore
         entry_lines: Set[int] = reduce(
             lambda a, b: a | b,
             [get_node_lines(adg, n) for n in get_entry_candidates(state)],
@@ -41,7 +42,7 @@ class TestBlockSlice(TestCase):
             stmt();
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertIn([1, 2, 3, 4], bss)
         self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertIn([2], bss)
@@ -62,7 +63,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertIn([2], bss)
         self.assertIn([4], bss)
@@ -78,11 +79,52 @@ class TestBlockSlice(TestCase):
             int d = c;
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
-        self.assertIn([1], bss)
-        self.assertIn([1, 2, 3], bss)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertIn([1, 2, 3, 4], bss)
+        self.assertIn([2, 3, 4], bss)
+        self.assertIn([3, 4], bss)
+        self.assertNotIn([1], bss)
+        self.assertNotIn([1, 2, 3], bss)
         self.assertNotIn([1, 2], bss)
+
+    def test_block_slice_class_field_not_need_to_return(self) -> None:
+        code = """
+            int a = 1;
+            int d = 1;
+            a = a + 1;
+            b = a + d;
+            int c = a + b;
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
+        self.assertIn([2, 3, 4], bss)
+
+    def test_mk_declared_variables_table(self) -> None:
+        code = """
+            T o;
+            int a = 1;
+            a = a + 1;
+            o[0] = 1;
+            int c = a + o[0];
+        """
+        adg = parse(code)
+        t = mk_declared_variables_table(adg.to_ddg(), code)
+        self.assertIn(set(['a']), t.values())
+        self.assertIn(set(['o']), t.values())
+        self.assertIn(set(['c']), t.values())
+
+    def test_block_slice_readonly_object_not_need_to_return(self) -> None:
+        code = """
+            T o;
+            int a = 1;
+            int b = 1;
+            a = a + b;
+            o[0] = 1;
+            int c = a + o[0];
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
+        self.assertIn([3, 4, 5], bss)
 
     def test_block_slice_no_repetitions(self) -> None:
         code = """
@@ -92,7 +134,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertIn([1], bss)
         self.assertIn([3], bss)
         self.assertIn([2, 3, 4], bss)
@@ -108,7 +150,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertIn([1], bss)
         self.assertIn([4], bss)
         self.assertIn([2, 3, 4, 5], bss)
@@ -121,7 +163,7 @@ class TestBlockSlice(TestCase):
             int b = 1;
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertIn([1], bss)
         self.assertIn([2], bss)
         self.assertIn([1, 2], bss)
@@ -133,7 +175,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertIn([1, 2, 3], bss)
         self.assertNotIn([2, 3], bss)
 
@@ -145,7 +187,7 @@ class TestBlockSlice(TestCase):
                 }
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertIn([1, 2, 3, 4], bss)
         self.assertIn([3, 4], bss)
 
@@ -156,7 +198,7 @@ class TestBlockSlice(TestCase):
             stmt;
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, [at_least_one_block_stmt])]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code, [at_least_one_block_stmt])]
         self.assertIn([1, 2], bss)
         self.assertIn([2, 3], bss)
         self.assertIn([1, 2, 3], bss)
@@ -173,7 +215,7 @@ class TestBlockSlice(TestCase):
             stmt;
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, [last_or_next_statement_is_control])]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code, [last_or_next_statement_is_control])]
         self.assertIn([1, 2], bss)
         self.assertIn([1, 2, 3], bss)
         self.assertIn([1, 2, 3, 4, 5], bss)
@@ -192,7 +234,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertIn([2], bss)
         self.assertIn([4], bss)
@@ -205,7 +247,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertIn([1, 2, 3], bss)
         self.assertIn([2], bss)
         self.assertNotIn([1, 2], bss)
@@ -218,7 +260,7 @@ class TestBlockSlice(TestCase):
                 y + 4;
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertNotIn([1, 2, 3], bss)
         self.assertIn([1, 2, 3, 4], bss)
         self.assertIn([2], bss)
@@ -232,7 +274,7 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertIn([1], bss)
         self.assertIn([3], bss)
         self.assertIn([2, 3, 4], bss)
@@ -250,10 +292,26 @@ class TestBlockSlice(TestCase):
             }
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertIn([1], bss)
         self.assertIn([3], bss)
         self.assertIn([5], bss)
+        self.assertIn([1, 2, 3, 4, 5, 6], bss)
+        self.assertIn([2, 3, 4, 5, 6], bss)
+
+    def test_block_slice_complete_return_and_throw(self) -> None:
+        code = """
+            stmt;
+            if (){
+                return;
+            } else {
+                throw;
+            }
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
+        self.assertIn([1], bss)
+        self.assertIn([3], bss)
         self.assertIn([1, 2, 3, 4, 5, 6], bss)
         self.assertIn([2, 3, 4, 5, 6], bss)
 
@@ -269,7 +327,7 @@ class TestBlockSlice(TestCase):
             stmt;
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg)]
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
         self.assertIn([1], bss)
         self.assertIn([3], bss)
         self.assertIn([5], bss)
@@ -279,6 +337,22 @@ class TestBlockSlice(TestCase):
         self.assertNotIn([1, 2, 3, 4, 5, 6, 7], bss)
         self.assertIn([2, 3, 4, 5, 6, 7, 8], bss)
         self.assertIn([1, 2, 3, 4, 5, 6, 7, 8], bss)
+
+    def test_block_slice_non_complete_return_but_there_are_no_statement_after(self) -> None:
+        code = """
+            if () {
+                syncronized (a) {
+                    if (){
+                        return;
+                    } else {
+                        stmt;
+                    }
+                }
+            }
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
+        self.assertIn([3, 4, 5, 6, 7], bss, msg='we can extract this block because there are no more statement after')
 
     def test_count_ncss(self) -> None:
         comment_lines = count_ncss(((0, 0), (9, 0)), {2, 3, 4})

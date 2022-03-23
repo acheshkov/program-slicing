@@ -1,7 +1,7 @@
 from program_graphs.adg.adg import ADG  # type: ignore
 from tree_sitter import Language, Parser  # type: ignore
 from program_graphs.types import NodeID  # type: ignore
-from typing import List, Mapping, Iterator, Optional, Tuple, Set
+from typing import List, Mapping, Iterator, Optional, Tuple, Set, Dict
 from slicing.block.utils import traverse_leafs_tree_sitter, TREE_SITTER_BLOCK_STATEMENTS
 from slicing.block.listing_map import mk_listing_pixel_map
 from itertools import chain
@@ -11,12 +11,16 @@ from slicing.block.state import State
 from slicing.block.filters import BlockSliceFilter, combine_filters, BlockSliceState, shared_line_filter
 from program_graphs.types import ASTNode
 import networkx as nx  # type: ignore
+from program_graphs.ddg.parser.java.utils import get_declared_variables  # type: ignore
 
 Graph = List[NodeID]
 Path = List[NodeID]
 Index = int
 PathSearchState = Tuple[List[NodeID], Mapping[NodeID, Index]]
 AllSuccessorGraphs = List[Graph]
+VarName = str
+VarType = str
+Variable = Tuple[VarName, VarType]
 
 
 def mk_parser() -> Parser:
@@ -67,7 +71,7 @@ def check_entry_single(state: State, nodes: Set[NodeID]) -> bool:
 def is_return_stmt(node: Optional[ASTNode]) -> bool:
     if node is None:
         return False
-    return node.type == 'return_statement'  # type: ignore
+    return node.type in ['return_statement', 'throw_statement']  # type: ignore
 
 
 def check_exits(
@@ -92,8 +96,23 @@ def check_exits(
     if len(exits) == returns_counter:
         return (None, BlockSliceState.LAST_TIME_VALID, ReturnState.COMPLETE)
     if len(non_return_exits) == 1:
-        return (non_return_exits[0], BlockSliceState.MAYBE_VALID_FURTHER, ReturnState.INCOMPLETE)
+        if has_any_executable_statement_after(cfg, non_return_exits[0]):
+            return (non_return_exits[0], BlockSliceState.MAYBE_VALID_FURTHER, ReturnState.INCOMPLETE)
+        else:
+            return (non_return_exits[0], BlockSliceState.VALID, ReturnState.COMPLETE)
     return (None, BlockSliceState.INVALID, ReturnState.INCOMPLETE)
+
+
+def has_any_executable_statement_after(cfg: ADG, node: NodeID) -> bool:
+    ss = get_cfg_successors(cfg, node)
+    if len([s for s in ss if cfg.nodes[s].get('ast_node') is not None]) > 0:
+        return True
+    for s in ss:
+        # if is_return_stmt(cfg.nodes[s].get('ast_node')):
+        #     continue
+        if has_any_executable_statement_after(cfg, s):
+            return True
+    return False
 
 
 def mk_block_slice(node: NodeID, state: State) -> Tuple[Optional[BlockSlice], BlockSliceState]:
@@ -198,15 +217,22 @@ def get_occupied_line_range(ast: ADG, node: NodeID) -> BlockSliceLineRange:
     return ast_node.start_point, ast_node.end_point
 
 
-def check_dd(ddg: ADG, nodes: Set[NodeID]) -> bool:
-    # check-1: no more than one unique written variable is used outside
+def check_dd(state: State, nodes: Set[NodeID]) -> bool:
+    # check-1: no more than one unique written variable is used outside (exluding class fields and non-primitive )
+    ddg = state.ddg
     only_ddg_nodes = nodes & set(ddg.nodes())
+    declared_vars: Set[VarName] = {var for n in only_ddg_nodes for vars in state.declared_vars[n] for var in vars}
     vars_used_outside = set()
     for n in only_ddg_nodes:
         for node_to in ddg.successors(n):
             if node_to in only_ddg_nodes:
                 continue
-            vars_used_outside |= ddg.edges[n, node_to]['vars']
+            for var_name in ddg.edges[n, node_to]['vars']:
+                if var_name in declared_vars:
+                    return False  # we can't extract and then duplicate declaration
+                if var_name in state.vars_not_need_to_return:
+                    continue  # these vars not need to return
+                vars_used_outside.add(var_name)
             if len(vars_used_outside) > 1:
                 return False
     return len(vars_used_outside) < 2
@@ -229,7 +255,6 @@ def next_block_slice(block_slice: BlockSlice, state: State) -> Tuple[Optional[Bl
         return None, BlockSliceState.INVALID
     if bs is None:
         return None, BlockSliceState.INVALID
-
     next_bs = combine_block_slices(block_slice, bs)
     if next_bs.return_state == ReturnState.INCOMPLETE:
         return next_bs, BlockSliceState.MAYBE_VALID_FURTHER
@@ -277,8 +302,9 @@ def bs_gen_l2(node: NodeID, state: State, filters: List[BlockSliceFilter]) -> It
 
 def bs_gen_l3(node: NodeID, state: State, filters: List[BlockSliceFilter]) -> Iterator[BlockSlice]:
     for bs in bs_gen_l2(node, state, filters):
+        # print("bs_gen_l3:", bs.line_range)
         nodes = bs.nodes
-        if check_dd(state.ddg, nodes):
+        if check_dd(state, nodes):
             yield bs
 
 
@@ -316,10 +342,30 @@ def get_entry_candidates(state: State) -> Set[NodeID]:
     return entry_candidates
 
 
-def gen_block_slices(g: ADG, filters: List[BlockSliceFilter] = []) -> Iterator[BlockSlice]:
-    ast = g.nodes[g.get_entry_node()].get('ast_node')
+def gen_block_slices(adg: ADG, source_code: str, filters: List[BlockSliceFilter] = []) -> Iterator[BlockSlice]:
+    ast = adg.nodes[adg.get_entry_node()].get('ast_node')
     row_col_map = mk_listing_pixel_map(ast)
-    state = State(g, row_col_map)
+    ddg = adg.to_ddg()
+    var_types: Dict[VarName, Optional[VarType]] = mk_var_types_table(ddg)
+    node_to_declared_vars = mk_declared_variables_table(ddg, source_code)
+    state = State(adg, ddg, row_col_map, var_types, node_to_declared_vars)
     entry_candidates = get_entry_candidates(state)
     for entry in entry_candidates:
         yield from gen_block_slices_from_single_node(entry, state, filters + [shared_line_filter])
+
+
+def mk_var_types_table(ddg: ADG) -> Dict[VarName, Optional[VarType]]:
+    res: Dict[VarName, Optional[VarType]] = {}
+    for _, write_vars in ddg.nodes(data='write_vars'):
+        for var_name, var_type in write_vars:
+            if var_name in res:
+                continue
+            res[var_name] = var_type
+    return res
+
+
+def mk_declared_variables_table(ddg: ADG, source_code: str) -> Dict[NodeID, Set[VarName]]:
+    res: Dict[NodeID, Set[VarName]] = {}
+    for node in ddg.nodes():
+        res[node] = get_declared_variables(ddg.nodes[node].get('ast_node'), source_code.encode())
+    return res
