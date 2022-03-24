@@ -52,6 +52,8 @@ def last_or_next_statement_is_control(bs: BlockSlice, state: State) -> BlockSlic
     if bs.exit_stmt_name in TREE_SITTER_BLOCK_STATEMENTS:
         return BlockSliceState.VALID
     exit = bs.exit
+    if exit is None:
+        return BlockSliceState.VALID
     successors = list(state.cfg.successors(exit))
     if len(successors) != 1:
         return BlockSliceState.VALID

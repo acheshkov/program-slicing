@@ -83,8 +83,11 @@ class TestBlockSlice(TestCase):
         self.assertIn([1, 2, 3, 4], bss)
         self.assertIn([2, 3, 4], bss)
         self.assertIn([3, 4], bss)
-        self.assertNotIn([1], bss)
-        self.assertNotIn([1, 2, 3], bss)
+        self.assertIn([1], bss)
+        self.assertIn([2], bss)
+        self.assertIn([3], bss)
+        self.assertIn([4], bss)
+        self.assertIn([1, 2, 3], bss)
         self.assertNotIn([1, 2], bss)
 
     def test_block_slice_class_field_not_need_to_return(self) -> None:
