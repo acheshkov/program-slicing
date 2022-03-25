@@ -1,7 +1,7 @@
 from program_graphs.types import ASTNode, NodeID  # type: ignore
 from typing import Iterator, Set
 from slicing.block.declaration import BlockSliceLineRange, get_start_line, get_end_line
-from program_graphs.adg import ADG
+from program_graphs.adg import ADG  # type: ignore
 
 
 def traverse_leafs_tree_sitter(node: ASTNode) -> Iterator[ASTNode]:
