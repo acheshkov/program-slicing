@@ -1,12 +1,11 @@
 from program_graphs.adg.adg import ADG  # type: ignore
-from tree_sitter import Language, Parser  # type: ignore
 from program_graphs.types import NodeID  # type: ignore
 from typing import List, Mapping, Iterator, Optional, Tuple, Set, Dict
-from slicing.block.utils import traverse_leafs_tree_sitter, TREE_SITTER_BLOCK_STATEMENTS
+from slicing.block.utils import find_blank_and_full_comment_lines, get_occupied_line_range, count_ncss, get_ast_node_lines
 from slicing.block.listing_map import mk_listing_pixel_map
 from itertools import chain
-from slicing.block.declaration import BlockSlice, ReturnState, BlockSliceLineRange, mk_block_slice_ex, combine_block_slices
-from slicing.block.declaration import get_start_line, get_end_line
+from slicing.block.declaration import BlockSlice, ReturnState, mk_block_slice_ex, combine_block_slices
+from slicing.block.declaration import TREE_SITTER_BLOCK_STATEMENTS
 from slicing.block.state import State
 from slicing.block.filters import BlockSliceFilter, combine_filters, BlockSliceState, shared_line_filter
 from program_graphs.types import ASTNode
@@ -23,11 +22,11 @@ VarType = str
 Variable = Tuple[VarName, VarType]
 
 
-def mk_parser() -> Parser:
-    JAVA_LANGUAGE = Language('build/my-languages.so', 'java')
-    parser = Parser()
-    parser.set_language(JAVA_LANGUAGE)
-    return parser
+# def mk_parser() -> Parser:
+#     JAVA_LANGUAGE = Language('build/my-languages.so', 'java')
+#     parser = Parser()
+#     parser.set_language(JAVA_LANGUAGE)
+#     return parser
 
 
 def find_all_exits(
@@ -135,14 +134,15 @@ def mk_block_slice(node: NodeID, state: State) -> Tuple[Optional[BlockSlice], Bl
             syntax_ancestors |= set(more_nodes)
             mb_exit_node = more_nodes[-1]
 
-    if mb_exit_node == state.adg.get_exit_node():
+    # if mb_exit_node == state.adg.get_exit_node():
+    if mb_exit_node == state.exit_node:
         # if block slice ends on PROGRAM's exit
         return_state = ReturnState.COMPLETE
 
     entry_node = node
     exit_node: NodeID = mb_exit_node
     block_slice_line_range = get_occupied_line_range(state.ast, node)
-    comment_and_blank_lines: Set[int] = find_blank_and_full_comment_lines(state.ast, node)
+    comment_and_blank_lines: Set[int] = get_ast_node_lines(state.ast, node) & state.blank_and_full_comment_lines
     block_slice_size = count_ncss(block_slice_line_range, comment_and_blank_lines)
     bs = mk_block_slice_ex(
         syntax_ancestors,
@@ -152,10 +152,7 @@ def mk_block_slice(node: NodeID, state: State) -> Tuple[Optional[BlockSlice], Bl
         block_slice_size,
         entry_stmt_name=state.ast.nodes[entry_node].get('ast_node').type
     )
-    # bs.entry_node_name = state.ast.nodes[entry_node].get('name')
     bs.return_state = return_state
-    # if state.ast.nodes[node].get('ast_node') is not None:
-    #     bs.has_block_stmt = state.ast.nodes[node].get('name') in BLOCK_STATEMENTS
     state.memory[node] = (bs, status)
     return bs, status
 
@@ -180,40 +177,6 @@ def safe_cfg_continuation(cfg: ADG, node: NodeID) -> List[NodeID]:
         current_node = next(cfg.successors(current_node), None)
 
     return cfg_continuation
-
-
-def ncss_from_node(ast: ADG, node: NodeID) -> int:
-    block_slice_line_range = get_occupied_line_range(ast, node)
-    comment_and_blank_lines: Set[int] = find_blank_and_full_comment_lines(ast, node)
-    block_slice_size = count_ncss(block_slice_line_range, comment_and_blank_lines)
-    return block_slice_size
-
-
-def count_ncss(line_range: BlockSliceLineRange, comment_and_lines: Set[int]) -> int:
-    if line_range is None:
-        return 0
-    lines = set(range(get_start_line(line_range), get_end_line(line_range) + 1))
-    lines = lines - comment_and_lines
-    return len(lines)
-
-
-def find_blank_and_full_comment_lines(ast: ADG, node: NodeID) -> Set[int]:
-    ast_node = ast.nodes[node].get('ast_node', None)
-    if ast_node is None:
-        return set()
-
-    all_lines = set(range(ast_node.start_point[0], ast_node.end_point[0] + 1))
-    for n in traverse_leafs_tree_sitter(ast_node):  # we need traverse whole AST, it's takes time
-        if n.type not in ['line_comment', 'block_comment']:
-            all_lines -= set(range(n.start_point[0], n.end_point[0] + 1))
-    return all_lines
-
-
-def get_occupied_line_range(ast: ADG, node: NodeID) -> BlockSliceLineRange:
-    ast_node = ast.nodes[node].get('ast_node', None)
-    if ast_node is None:
-        return None
-    return ast_node.start_point, ast_node.end_point
 
 
 def check_dd(state: State, nodes: Set[NodeID]) -> bool:
@@ -341,12 +304,13 @@ def get_entry_candidates(state: State) -> Set[NodeID]:
 
 
 def gen_block_slices(adg: ADG, source_code: str, filters: List[BlockSliceFilter] = []) -> Iterator[BlockSlice]:
-    ast = adg.nodes[adg.get_entry_node()].get('ast_node')
-    row_col_map = mk_listing_pixel_map(ast)
+    entry_node_ast = adg.nodes[adg.get_entry_node()].get('ast_node')
+    blank_and_full_comment_lines: Set[int] = find_blank_and_full_comment_lines(adg, adg.get_entry_node())
+    row_col_map = mk_listing_pixel_map(entry_node_ast)
     ddg = adg.to_ddg()
     var_types: Dict[VarName, Optional[VarType]] = mk_var_types_table(ddg)
     node_to_declared_vars = mk_declared_variables_table(ddg, source_code)
-    state = State(adg, ddg, row_col_map, var_types, node_to_declared_vars)
+    state = State(adg, ddg, row_col_map, var_types, node_to_declared_vars, blank_and_full_comment_lines)
     entry_candidates = get_entry_candidates(state)
     for entry in entry_candidates:
         yield from gen_block_slices_from_single_node(entry, state, filters + [shared_line_filter])

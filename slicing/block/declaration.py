@@ -1,12 +1,18 @@
 from typing import Set, Optional, Tuple
 from enum import IntEnum, Enum
-from slicing.block.utils import TREE_SITTER_BLOCK_STATEMENTS
+# from slicing.block.utils import TREE_SITTER_BLOCK_STATEMENTS
 
 RowCol = Tuple[int, int]
 LineRange = Tuple[RowCol, RowCol]
 BlockSliceLineRange = Optional[LineRange]
 BlockSliceSize = int
 NodeID = int
+
+
+TREE_SITTER_BLOCK_STATEMENTS = [
+    'if_statement', 'for_statement', 'while_statement', 'do_statement', 'enhanced_for_statement',
+    'switch_expression', 'try_statement', 'try_with_resources_statement', 'synchronized_statement', 'labeled_statement'
+]
 
 
 class ReturnState(IntEnum):

@@ -2,7 +2,7 @@
 from unittest import TestCase, main
 from program_graphs.adg.parser.java.parser import parse  # type: ignore
 from slicing.block.block import gen_block_slices, get_entry_candidates, get_node_lines, mk_declared_variables_table
-from slicing.block.block import get_occupied_line_range, count_ncss, find_blank_and_full_comment_lines
+from slicing.block.utils import get_occupied_line_range, count_ncss, find_blank_and_full_comment_lines
 from slicing.block.filters import at_least_one_block_stmt, last_or_next_statement_is_control
 from slicing.block.state import State
 from functools import reduce
@@ -25,7 +25,7 @@ class TestBlockSlice(TestCase):
             stmt()
         """
         adg = parse(code)
-        state = State(adg, None, None, {}, {})  # type: ignore
+        state = State(adg, None, None, {}, {}, {})  # type: ignore
         entry_lines: Set[int] = reduce(
             lambda a, b: a | b,
             [get_node_lines(adg, n) for n in get_entry_candidates(state)],

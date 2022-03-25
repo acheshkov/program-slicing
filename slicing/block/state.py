@@ -17,7 +17,8 @@ class State:
         ddg: ADG,
         row_col_map: ListingMap,
         var_types: Dict[VarName, Optional[VarType]],
-        declared_vars: Dict[NodeID, Set[VarName]]
+        declared_vars: Dict[NodeID, Set[VarName]],
+        blank_and_full_comment_lines: Set[int]
     ) -> None:
         self.cfg = adg.to_cfg()
         self.cdg = adg.to_cdg()
@@ -33,6 +34,8 @@ class State:
         self.declared_vars: Dict[NodeID, Set[VarName]] = declared_vars
         self.stops: Dict[NodeID, bool] = defaultdict(bool)
         self.memory: Dict[NodeID, Optional[Tuple[BlockSlice, BlockSliceState]]] = defaultdict(lambda: None)
+        self.exit_node = adg.get_exit_node()
+        self.blank_and_full_comment_lines = blank_and_full_comment_lines
 
     def _sort_variables(self, var_types: Dict[VarName, Optional[VarType]]) -> None:
         for var_name, var_type in var_types.items():

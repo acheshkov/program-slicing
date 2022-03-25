@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import Dict, Tuple
 from program_graphs.types import ASTNode  # type: ignore
-from slicing.block.block import traverse_leafs_tree_sitter  # type: ignore
+from slicing.block.utils import traverse_leafs_tree_sitter  # type: ignore
 
 Row = int
 Col = int

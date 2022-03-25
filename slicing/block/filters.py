@@ -1,6 +1,6 @@
 from slicing.block.declaration import BlockSlice, BlockSliceState
 from slicing.block.listing_map import is_line_empty_left, is_line_empty_right
-from slicing.block.utils import TREE_SITTER_BLOCK_STATEMENTS
+from slicing.block.declaration import TREE_SITTER_BLOCK_STATEMENTS
 from typing import Callable, List
 from slicing.block.state import State
 
