@@ -243,6 +243,22 @@ class TestBlockSlice(TestCase):
         self.assertIn([4], bss)
         self.assertNotIn([2, 3, 4, 5], bss)
 
+    def test_block_slice_try_with_resources(self) -> None:
+        code = """
+            try (T a = new T();) {
+                stmt;
+            }
+            if () {
+            }
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
+        self.assertIn([2], bss)
+        self.assertIn([4, 5], bss)
+        self.assertIn([1, 2, 3], bss)
+        self.assertIn([1, 2, 3, 4, 5], bss)
+        self.assertNotIn([2, 3, 4, 5], bss)
+
     def test_block_slice_for(self) -> None:
         code = """
             for (int i = 0; i < 10; i++){
