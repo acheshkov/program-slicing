@@ -2,7 +2,7 @@ from functools import reduce
 from typing import Set
 from unittest import TestCase, main
 
-from program_graphs.adg import parse_java
+from program_graphs.adg import parse_java  # type: ignore
 from program_graphs.adg.parser.java.parser import parse  # type: ignore
 
 from slicing.block.block import gen_block_slices
@@ -263,7 +263,7 @@ class TestBlockSlice(TestCase):
         self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertNotIn([2, 3, 4, 5], bss)
 
-    def _block_slice_with_try(self):
+    def _block_slice_with_try(self) -> str:
         return '''
                     try {
                         Gson gson = new GsonBuilder().setPrettyPrinting();
@@ -282,7 +282,7 @@ class TestBlockSlice(TestCase):
                     run1();
                 '''
 
-    def _block_slice_with_try_res(self):
+    def _block_slice_with_try_res(self) -> str:
         return '''
                     try {
                         Gson gson = new GsonBuilder().setPrettyPrinting();
@@ -308,7 +308,7 @@ class TestBlockSlice(TestCase):
             adg = parse_java(java_code)
             for block_sc in gen_block_slices(adg, java_code):
                 bs_codes.add(frozenset(block_sc.block_slice_lines()))
-        bs_codes = sorted(bs_codes)
+
         self.assertFalse({10, 11, 12, 13, 14} in bs_codes)
         self.assertFalse({10, 11, 12, 13, 14, 15} in bs_codes)
         self.assertFalse({2, 3, 4, 5, 6, 7, 8, 9, 10, 11} in bs_codes)
