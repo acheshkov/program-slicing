@@ -2,7 +2,6 @@ from functools import reduce
 from typing import Set
 from unittest import TestCase, main
 
-from program_graphs.adg import parse_java  # type: ignore
 from program_graphs.adg.parser.java.parser import parse  # type: ignore
 
 from slicing.block.block import gen_block_slices
@@ -247,6 +246,22 @@ class TestBlockSlice(TestCase):
         self.assertIn([4], bss)
         self.assertNotIn([2, 3, 4, 5], bss)
 
+    def test_block_slice_try_finally(self) -> None:
+        code = """
+            try(T a = new T();) {
+                stmt();
+            }
+            finally {
+                stmt();
+            }
+            stmt();
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
+        self.assertNotIn([5, 6, 7], bss)
+        self.assertNotIn([2, 3, 4, 5, 6], bss)
+        self.assertNotIn([2, 3, 4, 5, 6, 7], bss)
+
     def test_block_slice_try_with_resources(self) -> None:
         code = """
             try (T a = new T();) {
@@ -262,40 +277,6 @@ class TestBlockSlice(TestCase):
         self.assertIn([1, 2, 3], bss)
         self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertNotIn([2, 3, 4, 5], bss)
-
-    def _block_slice_with_try(self) -> str:
-        return '''
-                    try {
-                        run();
-                    }
-                    finally {
-                        stmt();
-                    }
-                    stmt3();
-                '''
-
-    def _block_slice_with_try_res(self) -> str:
-        return '''
-                    try(T a = new T();A a = new A()) {
-                        run();
-                    }
-                    finally {
-                        stmt();
-                    }
-                    stmt3();
-                '''
-
-    def test_block_slice_try_with_finally(self) -> None:
-        java_codes = [self._block_slice_with_try(), self._block_slice_with_try_res()]
-        bs_codes = set()
-        for java_code in java_codes:
-            adg = parse_java(java_code)
-            for block_sc in gen_block_slices(adg, java_code):
-                bs_codes.add(frozenset(block_sc.block_slice_lines()))
-
-        self.assertNotIn({5, 6, 7}, bs_codes)
-        self.assertNotIn({2, 3, 4, 5, 6}, bs_codes)
-        self.assertNotIn({2, 3, 4, 5, 6, 7}, bs_codes)
 
     def test_block_slice_for(self) -> None:
         code = """
