@@ -266,39 +266,23 @@ class TestBlockSlice(TestCase):
     def _block_slice_with_try(self) -> str:
         return '''
                     try {
-                        Gson gson = new GsonBuilder().setPrettyPrinting();
-                        gson.toJson(smellResults, writer);
-                        writer.flush();
-                        if (Files.notExists(Paths.get(GlobalEnvironment.getInstance().result))) {
-                            FileUtils.copyFile(new File(Paths.get(GlobalEnvironment.getInstance().result)));
-                        }
-                    }
-                    finally {
-                        run3();
-                    }
-                    if (cmd.hasOptions("offline")) {
                         run();
                     }
-                    run1();
+                    finally {
+                        stmt();
+                    }
+                    stmt3();
                 '''
 
     def _block_slice_with_try_res(self) -> str:
         return '''
-                    try {
-                        Gson gson = new GsonBuilder().setPrettyPrinting();
-                        gson.toJson(smellResults, writer);
-                        writer.flush();
-                        if (Files.notExists(Paths.get(GlobalEnvironment.getInstance().result))) {
-                            FileUtils.copyFile(new File(Paths.get(GlobalEnvironment.getInstance().result)));
-                        }
-                    }
-                    finally {
-                        run3();
-                    }
-                    if (cmd.hasOptions("offline")) {
+                    try(T a = new T();A a = new A()) {
                         run();
                     }
-                    run1();
+                    finally {
+                        stmt();
+                    }
+                    stmt3();
                 '''
 
     def test_block_slice_try_with_finally(self) -> None:
@@ -309,14 +293,9 @@ class TestBlockSlice(TestCase):
             for block_sc in gen_block_slices(adg, java_code):
                 bs_codes.add(frozenset(block_sc.block_slice_lines()))
 
-        self.assertFalse({10, 11, 12, 13, 14} in bs_codes)
-        self.assertFalse({10, 11, 12, 13, 14, 15} in bs_codes)
-        self.assertFalse({2, 3, 4, 5, 6, 7, 8, 9, 10, 11} in bs_codes)
-        self.assertFalse({2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} in bs_codes)
-        self.assertFalse({2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} in bs_codes)
-        self.assertFalse({5, 6, 7, 8, 9, 10, 11} in bs_codes)
-        self.assertFalse({5, 6, 7, 8, 9, 10, 11, 12, 13, 14} in bs_codes)
-        self.assertFalse({5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} in bs_codes)
+        self.assertNotIn({5, 6, 7}, bs_codes)
+        self.assertNotIn({2, 3, 4, 5, 6}, bs_codes)
+        self.assertNotIn({2, 3, 4, 5, 6, 7}, bs_codes)
 
     def test_block_slice_for(self) -> None:
         code = """
