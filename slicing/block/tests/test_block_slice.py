@@ -1,12 +1,15 @@
-
-from unittest import TestCase, main
-from program_graphs.adg.parser.java.parser import parse  # type: ignore
-from slicing.block.block import gen_block_slices, get_entry_candidates, get_node_lines, mk_declared_variables_table
-from slicing.block.utils import get_occupied_line_range, count_ncss, find_blank_and_full_comment_lines
-from slicing.block.filters import at_least_one_block_stmt, last_or_next_statement_is_control
-from slicing.block.state import State
 from functools import reduce
 from typing import Set
+from unittest import TestCase, main
+
+from program_graphs.adg import parse_java
+from program_graphs.adg.parser.java.parser import parse  # type: ignore
+
+from slicing.block.block import gen_block_slices
+from slicing.block.block import get_entry_candidates, get_node_lines, mk_declared_variables_table
+from slicing.block.filters import at_least_one_block_stmt, last_or_next_statement_is_control
+from slicing.block.state import State
+from slicing.block.utils import get_occupied_line_range, count_ncss, find_blank_and_full_comment_lines
 
 
 class TestBlockSlice(TestCase):
@@ -218,7 +221,8 @@ class TestBlockSlice(TestCase):
             stmt;
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code, [last_or_next_statement_is_control])]
+        bss = [sorted(bs.block_slice_lines()) for bs in
+               gen_block_slices(adg, code, [last_or_next_statement_is_control])]
         self.assertIn([1, 2], bss)
         self.assertIn([1, 2, 3], bss)
         self.assertIn([1, 2, 3, 4, 5], bss)
@@ -258,6 +262,61 @@ class TestBlockSlice(TestCase):
         self.assertIn([1, 2, 3], bss)
         self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertNotIn([2, 3, 4, 5], bss)
+
+    def _block_slice_with_try(self):
+        return '''
+                    try {
+                        Gson gson = new GsonBuilder().setPrettyPrinting();
+                        gson.toJson(smellResults, writer);
+                        writer.flush();
+                        if (Files.notExists(Paths.get(GlobalEnvironment.getInstance().result))) {
+                            FileUtils.copyFile(new File(Paths.get(GlobalEnvironment.getInstance().result)));
+                        }
+                    }
+                    finally {
+                        run3();
+                    }
+                    if (cmd.hasOptions("offline")) {
+                        run();
+                    }
+                    run1();
+                '''
+
+    def _block_slice_with_try_res(self):
+        return '''
+                    try {
+                        Gson gson = new GsonBuilder().setPrettyPrinting();
+                        gson.toJson(smellResults, writer);
+                        writer.flush();
+                        if (Files.notExists(Paths.get(GlobalEnvironment.getInstance().result))) {
+                            FileUtils.copyFile(new File(Paths.get(GlobalEnvironment.getInstance().result)));
+                        }
+                    }
+                    finally {
+                        run3();
+                    }
+                    if (cmd.hasOptions("offline")) {
+                        run();
+                    }
+                    run1();
+                '''
+
+    def test_block_slice_try_with_finally(self) -> None:
+        java_codes = [self._block_slice_with_try(), self._block_slice_with_try_res()]
+        bs_codes = set()
+        for java_code in java_codes:
+            adg = parse_java(java_code)
+            for block_sc in gen_block_slices(adg, java_code):
+                bs_codes.add(frozenset(block_sc.block_slice_lines()))
+        bs_codes = sorted(bs_codes)
+        self.assertFalse({10, 11, 12, 13, 14} in bs_codes)
+        self.assertFalse({10, 11, 12, 13, 14, 15} in bs_codes)
+        self.assertFalse({2, 3, 4, 5, 6, 7, 8, 9, 10, 11} in bs_codes)
+        self.assertFalse({2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14} in bs_codes)
+        self.assertFalse({2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} in bs_codes)
+        self.assertFalse({5, 6, 7, 8, 9, 10, 11} in bs_codes)
+        self.assertFalse({5, 6, 7, 8, 9, 10, 11, 12, 13, 14} in bs_codes)
+        self.assertFalse({5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} in bs_codes)
 
     def test_block_slice_for(self) -> None:
         code = """
