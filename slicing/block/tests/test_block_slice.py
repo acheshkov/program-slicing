@@ -1,12 +1,14 @@
-
-from unittest import TestCase, main
-from program_graphs.adg.parser.java.parser import parse  # type: ignore
-from slicing.block.block import gen_block_slices, get_entry_candidates, get_node_lines, mk_declared_variables_table
-from slicing.block.utils import get_occupied_line_range, count_ncss, find_blank_and_full_comment_lines
-from slicing.block.filters import at_least_one_block_stmt, last_or_next_statement_is_control
-from slicing.block.state import State
 from functools import reduce
 from typing import Set
+from unittest import TestCase, main
+
+from program_graphs.adg.parser.java.parser import parse  # type: ignore
+
+from slicing.block.block import gen_block_slices
+from slicing.block.block import get_entry_candidates, get_node_lines, mk_declared_variables_table
+from slicing.block.filters import at_least_one_block_stmt, last_or_next_statement_is_control
+from slicing.block.state import State
+from slicing.block.utils import get_occupied_line_range, count_ncss, find_blank_and_full_comment_lines
 
 
 class TestBlockSlice(TestCase):
@@ -218,7 +220,8 @@ class TestBlockSlice(TestCase):
             stmt;
         """
         adg = parse(code)
-        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code, [last_or_next_statement_is_control])]
+        bss = [sorted(bs.block_slice_lines()) for bs in
+               gen_block_slices(adg, code, [last_or_next_statement_is_control])]
         self.assertIn([1, 2], bss)
         self.assertIn([1, 2, 3], bss)
         self.assertIn([1, 2, 3, 4, 5], bss)
@@ -241,6 +244,38 @@ class TestBlockSlice(TestCase):
         self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertIn([2], bss)
         self.assertIn([4], bss)
+        self.assertNotIn([2, 3, 4, 5], bss)
+
+    def test_block_slice_try_finally(self) -> None:
+        code = """
+            try(T a = new T();) {
+                stmt();
+            }
+            finally {
+                stmt();
+            }
+            stmt();
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
+        self.assertNotIn([5, 6, 7], bss)
+        self.assertNotIn([2, 3, 4, 5, 6], bss)
+        self.assertNotIn([2, 3, 4, 5, 6, 7], bss)
+
+    def test_block_slice_try_with_resources(self) -> None:
+        code = """
+            try (T a = new T();) {
+                stmt;
+            }
+            if () {
+            }
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
+        self.assertIn([2], bss)
+        self.assertIn([4, 5], bss)
+        self.assertIn([1, 2, 3], bss)
+        self.assertIn([1, 2, 3, 4, 5], bss)
         self.assertNotIn([2, 3, 4, 5], bss)
 
     def test_block_slice_for(self) -> None:

@@ -1,1 +1,1 @@
-program_graphs @ git+https://github.com/acheshkov/program-graphs@super_graph_experimental#egg=program_graphs
+program_graphs @ git+https://github.com/acheshkov/program-graphs@master#egg=program_graphs
