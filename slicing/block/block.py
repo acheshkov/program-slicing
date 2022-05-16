@@ -183,17 +183,18 @@ def check_dd(state: State, nodes: Set[NodeID]) -> bool:
     # check-1: no more than one unique written variable is used outside (exluding class fields and non-primitive )
     ddg = state.ddg
     only_ddg_nodes = nodes & set(ddg.nodes())
-    # declared_vars: Set[VarName] = {var for n in only_ddg_nodes for var in state.declared_vars[n]}
+    declared_vars: Set[VarName] = {var for n in only_ddg_nodes for var in state.declared_vars[n]}
     vars_used_outside = set()
     for n in only_ddg_nodes:
         for node_to in ddg.successors(n):
             if node_to in only_ddg_nodes:
-                continue
+                continue  # if dependency internal then skip
             for var_name in ddg.edges[n, node_to]['vars']:
                 # if var_name in declared_vars:
                 #     return False  # we can't extract and then duplicate declaration
                 if var_name in state.vars_not_need_to_return:
-                    continue  # these vars not need to return
+                    if var_name not in declared_vars:
+                        continue  # these vars not need to return
                 vars_used_outside.add(var_name)
             if len(vars_used_outside) > 1:
                 return False

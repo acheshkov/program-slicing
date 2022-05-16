@@ -376,6 +376,17 @@ class TestBlockSlice(TestCase):
         self.assertIn([2, 3, 4, 5, 6, 7, 8], bss)
         self.assertIn([1, 2, 3, 4, 5, 6, 7, 8], bss)
 
+    def test_block_slice_bug(self) -> None:
+        code = """
+            A a = new A();
+            B b = new B();
+            a == 1;
+            b == 1;
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
+        self.assertNotIn([1, 2], bss)
+
     def test_block_slice_non_complete_return_but_there_are_no_statement_after(self) -> None:
         code = """
             if () {
