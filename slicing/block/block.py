@@ -192,7 +192,6 @@ def check_dd(state: State, nodes: Set[NodeID]) -> bool:
             for var_name in ddg.edges[n, node_to]['vars']:
                 # if var_name in declared_vars:
                 #     return False  # we can't extract and then duplicate declaration
-                # vars_not_need_to_return = state.vars_not_need_to_return - declared_vars
                 if var_name in state.vars_not_need_to_return:
                     if var_name not in declared_vars:
                         continue  # these vars not need to return

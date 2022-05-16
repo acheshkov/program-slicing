@@ -385,7 +385,7 @@ class TestBlockSlice(TestCase):
         """
         adg = parse(code)
         bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
-        self.assertNotIn([1,2], bss)
+        self.assertNotIn([1, 2], bss)
 
     def test_block_slice_non_complete_return_but_there_are_no_statement_after(self) -> None:
         code = """
