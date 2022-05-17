@@ -27,14 +27,11 @@ jobs:
         git clone https://github.com/acheshkov/program-slicing.git
         cd program-slicing
         git submodule update --recursive --init
-        git log --merges --first-parent master --pretty=format:"%H" | head -n 10 | tee test.log
-        echo "::set-output name=commit_ids::$(cat test.log)"
-      id: get_commits
-    - name: Make performance testing for each commit id
-      run: |
-        echo ${{join(steps.get_commits.outputs.*, '\n')}}
-        
-        for i in $(echo $COMMIT_IDS | tr ";" "\n")
+        COMMIT_IDS=git log --merges --first-parent master --pretty=format:"%H" | head -n 5
+        for i in $(echo $COMMIT_IDS | tr "\n")
         do
           echo $i
         done
+
+      id: get_commits
+        
