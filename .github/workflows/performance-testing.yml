@@ -27,7 +27,7 @@ jobs:
         git clone https://github.com/acheshkov/program-slicing.git
         cd program-slicing
         git submodule update --recursive --init
-        COMMIT_IDS=git log --merges --first-parent master --pretty=format:"%H" | head -n 5
+        COMMIT_IDS=$(git log --merges --first-parent master --pretty=format:"%H" | head -n 5)
         for i in $(echo $COMMIT_IDS | tr "\n")
         do
           echo $i
