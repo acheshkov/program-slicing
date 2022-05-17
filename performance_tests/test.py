@@ -4,7 +4,7 @@ import warnings
 from collections import defaultdict
 from pathlib import Path
 from time import time
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 import pandas as pd
 from program_graphs.adg import parse_java
@@ -37,7 +37,7 @@ def run_perf_test(commit_id: Optional[str], commit_time: Optional[datetime], pat
                 list(gen_block_slices(adg, method_code, [mk_max_min_ncss_filter(50, 4)]))
                 end = time()
                 diff = end - start
-                times[filename].append(diff)
+                times[(filename, diff)].append(diff)
 
     return times
     # for filename, time_lst in
