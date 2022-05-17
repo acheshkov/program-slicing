@@ -56,7 +56,7 @@ jobs:
             CUR_DIR=$(pwd)
             ls
             SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
-            python3 $SCRIPT_PATH "${CUR_DIR}/program-slicing" --commit_id=$line
+            python3 $SCRIPT_PATH --commit_id=$line
             rm -rf program-slicing && deactivate
         done
 
