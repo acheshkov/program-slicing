@@ -19,7 +19,7 @@ warnings.filterwarnings('ignore')  # Ignore everything
 
 
 def run_perf_test(commit_id: Optional[str], path: Path, df: pd.DataFrame) -> None:
-    print(f'Running {commit_id} from {commit_time}...')
+    print(f'Running {commit_id}...')
     files = [x for x in path.rglob('**/*.java') if x.is_file()]
     # print(path, files)
     times = defaultdict(list)
