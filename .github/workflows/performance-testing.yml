@@ -32,7 +32,7 @@ jobs:
       id: get_commits
     - name: Make performance testing for each commit id
       run: |
-        echo ${{ steps.get_commits.outputs.commit_ids }}
+        echo ${{join(steps.get_commits.outputs.*, '\n')}}
         
         for i in $(echo $COMMIT_IDS | tr ";" "\n")
         do
