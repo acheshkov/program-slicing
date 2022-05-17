@@ -18,7 +18,7 @@ import argparse
 warnings.filterwarnings('ignore')  # Ignore everything
 
 
-def run_perf_test(commit_id: Optional[str], commit_time: Optional[datetime], path: Path, df: pd.DataFrame) -> None:
+def run_perf_test(commit_id: Optional[str], path: Path, df: pd.DataFrame) -> None:
     print(f'Running {commit_id} from {commit_time}...')
     files = [x for x in path.rglob('**/*.java') if x.is_file()]
     # print(path, files)
@@ -87,5 +87,5 @@ if __name__ == '__main__':
     results = []
 
     df = pd.DataFrame(columns=['file', 'secs', 'commit_id', 'commit_time'])
-    run_perf_test(None, None, args.dataset_path, df)
+    run_perf_test(args.commit_id, args.dataset_path, df)
     df.to_csv(f'{args.commit_id}.csv')
