@@ -24,7 +24,13 @@ jobs:
         python -m pip install --upgrade pip setuptools wheel
     - name: Get top 5 merges to master
       run: |
+        pwd
+        git clone https://github.com/acheshkov/program-slicing.git
+        cd program-slicing
+        pwd
         COMMIT_IDS=$(git log --merges --first-parent master --pretty=format:"%H" | head -n 5)
+        cd ..
+        pwd
         echo $COMMIT_IDS
         declare -a theArray
 
@@ -32,12 +38,12 @@ jobs:
         do
             theArray+=("$COMMIT_IDS")            
         done <<< "$COMMIT_IDS"
-        
+
         for line in "${theArray[@]}"
         do
             echo "Running test for sha $line"
             ls
-            git clone https://github.com/acheshkov/program-slicing.git
+            [ ! -d "program-slicing" ] && git clone https://github.com/acheshkov/program-slicing.git
             cd program-slicing
             ls
             git checkout $i
