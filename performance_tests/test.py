@@ -4,7 +4,7 @@ import warnings
 from collections import defaultdict
 from pathlib import Path
 from time import time
-from typing import Optional, List, Dict
+from typing import Optional, List
 
 import pandas as pd
 from program_graphs.adg import parse_java
@@ -12,15 +12,13 @@ from slicing.block.block import gen_block_slices
 from slicing.block.filters import mk_max_min_ncss_filter
 from datetime import datetime
 import subprocess
-# import isodate
 import os
 import argparse
-
 
 warnings.filterwarnings('ignore')  # Ignore everything
 
 
-def run_perf_test(commit_id: Optional[str], commit_time: Optional[datetime], path: Path) -> Dict[str, List[float]]:
+def run_perf_test(commit_id: Optional[str], commit_time: Optional[datetime], path: Path, df: pd.DataFrame) -> None:
     print(f'Running {commit_id} from {commit_time}...')
     files = [x for x in path.rglob('**/*.java') if x.is_file()]
     # print(path, files)
@@ -38,12 +36,9 @@ def run_perf_test(commit_id: Optional[str], commit_time: Optional[datetime], pat
                 end = time()
                 diff = end - start
                 times[(filename, diff)].append(diff)
-
-    return times
-    # for filename, time_lst in
-    #     # except Exception as e:
-    #         # print(f'Err for {dataset_file}: {str(e)}')
-    #         # continue
+                df.append(
+                    {'file': filename, 'secs': diff, 'commit_id': commit_id, 'commit_time': commit_time},
+                    ignore_index=True)
 
 
 def run_cmd_and_print_output(cmd: List[str]):
@@ -87,42 +82,11 @@ if __name__ == '__main__':
         required=True
     )
     args = parser.parse_args()
-    # path = Path(args.repo_path)
-    # os.chdir(path)
 
     time_arr = []
     results = []
 
-    # output = subprocess.run(
-    #     ["git", "log", "--merges", "--first-parent", "master", '--pretty=format:"%H %cI"'],
-    #     check=True,
-    #     stdout=subprocess.PIPE).stdout.decode('utf-8')
-    # top_n = 10
-    # merge_requests_lst = output.split('\n')[0:top_n]
-    # df = pd.DataFrame(columns=['file', 'secs', 'commit_id', 'commit_time'])
-    # run_cmd_and_print_output('git clone ')
-    json_d = run_perf_test(None, None, args.dataset_path)
-    with open(args.commit_id + '.csv', 'w', encoding='utf-8') as w:
-        json.dump(w, json_d)
-    # for mr_i in merge_requests_lst:
-    #     commit_id, time_str = mr_i.split(' ', maxsplit=1)
-    #     datetime_for_commit = isodate.parse_datetime(time_str.strip())
-        # git_checkout(commit_id)
-        # run_perf_test(commit_id, datetime_for_commit, df)
-
-# resp = response.content
-# end = time()
-# diff = end - start
-# time_arr.append(diff)
-# print(f'Time for {dataset_file}: {diff} secs;')
-# resp = json.loads(resp.decode('utf-8'))
-# print(resp)
-# if resp:
-# if resp.get('result'):
-# results.append(resp['result'])
-# print(f'{dataset_file}: {resp}')
-
-# with open('out.ccs_top1', 'w') as w:
-# json.dump(results, w)
-# print(f'Total time: {sum(time_arr)}')
-# print(f'Avg time: {mean(time_arr)}, {median(time_arr)}, {percentile(time_arr, 70)} , {percentile(time_arr, 95)}')
+    df = pd.DataFrame(columns=['file', 'secs', 'commit_id', 'commit_time'])
+    run_cmd_and_print_output('git clone ')
+    run_perf_test(None, None, args.dataset_path, df)
+    df.append(f'{args.commit_id}.csv')
