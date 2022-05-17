@@ -28,9 +28,18 @@ jobs:
         cd program-slicing
         git submodule update --recursive --init
         COMMIT_IDS=$(git log --merges --first-parent master --pretty=format:"%H" | head -n 5)
-        for i in $(echo $COMMIT_IDS | tr "\n")
+        echo $COMMIT_IDS
+        declare -a theArray
+
+        while read -r COMMIT_IDS
         do
-          echo $i
+            theArray+=("$COMMIT_IDS")            
+        done <<< "$COMMIT_IDS"
+        
+        for line in "${theArray[@]}"
+        do
+            echo "$line"
+            #Do something complex here that would break your read loop
         done
 
       id: get_commits
