@@ -88,4 +88,4 @@ if __name__ == '__main__':
 
     df = pd.DataFrame(columns=['file', 'secs', 'commit_id', 'commit_time'])
     run_perf_test(None, None, args.dataset_path, df)
-    df.append(f'{args.commit_id}.csv')
+    df.to_csv(f'{args.commit_id}.csv')
