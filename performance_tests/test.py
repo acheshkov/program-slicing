@@ -87,6 +87,5 @@ if __name__ == '__main__':
     results = []
 
     df = pd.DataFrame(columns=['file', 'secs', 'commit_id', 'commit_time'])
-    run_cmd_and_print_output('git clone ')
     run_perf_test(None, None, args.dataset_path, df)
     df.append(f'{args.commit_id}.csv')
