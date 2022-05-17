@@ -1,0 +1,36 @@
+name: Tests
+
+on: [push]
+
+jobs:
+  run_tests:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential 
+        sudo apt-get install -y manpages-dev
+        python -m pip install --upgrade pip setuptools wheel
+    - name: Get top 5 merges to master
+      run: |
+        git clone https://github.com/acheshkov/program-slicing.git
+        cd program-slicing
+        git submodule update --recursive --init
+        COMMIT_IDS=$(git log --merges --first-parent master --pretty=format:"%H" | head -n 10)
+    - name: Make performance testing for each commit id
+      run: |
+        for i in $(echo $IN | tr ";" "\n")
+        do
+          echo $i
+        done
