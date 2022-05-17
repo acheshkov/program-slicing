@@ -56,7 +56,8 @@ jobs:
             CUR_DIR=$(pwd)
             ls
             SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
-            python3 $SCRIPT_PATH --commit_id=$line
+            DATASET_PATH="${CUR_DIR}/performance_tests/performance_dataset"
+            python3 $SCRIPT_PATH --dataset_path=$DATASET_PATH --commit_id=$line
             rm -rf program-slicing && deactivate
         done
 

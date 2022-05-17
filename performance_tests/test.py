@@ -20,10 +20,10 @@ import argparse
 warnings.filterwarnings('ignore')  # Ignore everything
 
 
-def run_perf_test(commit_id: Optional[str], commit_time: Optional[datetime], path: Path, df: pd.DataFrame) -> None:
+def run_perf_test(commit_id: Optional[str], commit_time: Optional[datetime], path: Path) -> Dict[str, List[float]]:
     print(f'Running {commit_id} from {commit_time}...')
     files = [x for x in path.rglob('**/*.java') if x.is_file()]
-    print(path, files)
+    # print(path, files)
     times = defaultdict(list)
     for x in range(100):
         for dataset_file in files:
@@ -38,10 +38,8 @@ def run_perf_test(commit_id: Optional[str], commit_time: Optional[datetime], pat
                 end = time()
                 diff = end - start
                 times[filename].append(diff)
-                df.append(
-                    {'file': filename, 'secs': diff, 'commit_id': commit_id, 'commit_time': commit_time},
-                    ignore_index=True)
 
+    return times
     # for filename, time_lst in
     #     # except Exception as e:
     #         # print(f'Err for {dataset_file}: {str(e)}')
@@ -79,8 +77,13 @@ if __name__ == '__main__':
         description='Run performance testing for program-slicing repo with certain commit id'
     )
     parser.add_argument(
-        '--commit_id',
+        '--dataset_path',
         type=Path,
+        required=True
+    )
+    parser.add_argument(
+        '--commit_id',
+        type=str,
         required=True
     )
     args = parser.parse_args()
@@ -96,10 +99,11 @@ if __name__ == '__main__':
     #     stdout=subprocess.PIPE).stdout.decode('utf-8')
     # top_n = 10
     # merge_requests_lst = output.split('\n')[0:top_n]
-    df = pd.DataFrame(columns=['file', 'secs', 'commit_id', 'commit_time'])
+    # df = pd.DataFrame(columns=['file', 'secs', 'commit_id', 'commit_time'])
     # run_cmd_and_print_output('git clone ')
-    run_perf_test(None, None, path, df)
-    df.to_csv(args.commit_id + '.csv')
+    json_d = run_perf_test(None, None, args.dataset_path)
+    with open(args.commit_id + '.csv', encoding='utf-8') as w:
+        json.dump(json_d)
     # for mr_i in merge_requests_lst:
     #     commit_id, time_str = mr_i.split(' ', maxsplit=1)
     #     datetime_for_commit = isodate.parse_datetime(time_str.strip())
