@@ -47,6 +47,7 @@ jobs:
             cd program-slicing
             ls
             git checkout $i
+            git diff slicing/block/block.py
             git submodule update --recursive --init
             python3 -m venv venv && source venv/bin/activate
             if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
