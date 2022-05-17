@@ -50,12 +50,12 @@ jobs:
             git submodule update --recursive --init
             python3 -m venv venv && source venv/bin/activate
             if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
-            pip3 install .
+            pip3 install . && pip3 install pandas
             cd ..
             CUR_DIR=$(pwd)
             ls
             SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
-            python3 $SCRIPT_PATH "${CUR_DIR}/program-slicing"
+            python3 $SCRIPT_PATH "${CUR_DIR}/program-slicing" $i
             rm -rf program-slicing && deactivate
         done
 
