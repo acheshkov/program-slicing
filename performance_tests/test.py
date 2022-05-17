@@ -102,7 +102,7 @@ if __name__ == '__main__':
     # df = pd.DataFrame(columns=['file', 'secs', 'commit_id', 'commit_time'])
     # run_cmd_and_print_output('git clone ')
     json_d = run_perf_test(None, None, args.dataset_path)
-    with open(args.commit_id + '.csv', encoding='utf-8') as w:
+    with open(args.commit_id + '.csv', 'w', encoding='utf-8') as w:
         json.dump(json_d)
     # for mr_i in merge_requests_lst:
     #     commit_id, time_str = mr_i.split(' ', maxsplit=1)
