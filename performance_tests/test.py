@@ -78,29 +78,30 @@ if __name__ == '__main__':
         description='Run performance testing for program-slicing repo with certain commit id'
     )
     parser.add_argument(
-        '--repo_path',
+        '--commit_id',
         type=Path,
         required=True
     )
     args = parser.parse_args()
-    path = Path(args.repo_path)
-    os.chdir(path)
+    # path = Path(args.repo_path)
+    # os.chdir(path)
 
     time_arr = []
     results = []
 
-    output = subprocess.run(
-        ["git", "log", "--merges", "--first-parent", "master", '--pretty=format:"%H %cI"'],
-        check=True,
-        stdout=subprocess.PIPE).stdout.decode('utf-8')
-    top_n = 10
-    merge_requests_lst = output.split('\n')[0:top_n]
+    # output = subprocess.run(
+    #     ["git", "log", "--merges", "--first-parent", "master", '--pretty=format:"%H %cI"'],
+    #     check=True,
+    #     stdout=subprocess.PIPE).stdout.decode('utf-8')
+    # top_n = 10
+    # merge_requests_lst = output.split('\n')[0:top_n]
     df = pd.DataFrame(columns=['file', 'secs', 'commit_id', 'commit_time'])
     # run_cmd_and_print_output('git clone ')
     run_perf_test(None, None, path, df)
-    for mr_i in merge_requests_lst:
-        commit_id, time_str = mr_i.split(' ', maxsplit=1)
-        datetime_for_commit = isodate.parse_datetime(time_str.strip())
+    df.to_csv(args.commit_id + '.csv')
+    # for mr_i in merge_requests_lst:
+    #     commit_id, time_str = mr_i.split(' ', maxsplit=1)
+    #     datetime_for_commit = isodate.parse_datetime(time_str.strip())
         # git_checkout(commit_id)
         # run_perf_test(commit_id, datetime_for_commit, df)
 
