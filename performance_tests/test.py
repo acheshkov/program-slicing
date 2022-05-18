@@ -18,15 +18,12 @@ import argparse
 warnings.filterwarnings('ignore')  # Ignore everything
 
 
-def run_perf_test(commit_id: Optional[str], path: Path, df: pd.DataFrame) -> None:
-    print(f'Running {commit_id}...')
+def run_perf_test(output_file: Optional[str], path: Path, df: pd.DataFrame) -> None:
+    print(f'Running for {output_file}...')
     files = [x for x in path.rglob('**/*.java') if x.is_file()]
-    # print(path, files)
-    times = defaultdict(list)
-    for x in range(100):
+    for i in range(100):
         for dataset_file in files:
             filename = dataset_file.name
-            # try:
             with open(dataset_file) as f:
                 print(dataset_file)
                 method_code = "class Foo {" + f.read() + "}"
@@ -35,9 +32,8 @@ def run_perf_test(commit_id: Optional[str], path: Path, df: pd.DataFrame) -> Non
                 list(gen_block_slices(adg, method_code, [mk_max_min_ncss_filter(50, 4)]))
                 end = time()
                 diff = end - start
-                times[(filename, diff)].append(diff)
                 df.append(
-                    {'file': filename, 'secs': diff, 'commit_id': commit_id, 'commit_time': commit_time},
+                    {'file': filename, 'secs': diff, 'label': output_file, iter: i},
                     ignore_index=True)
 
 
@@ -53,16 +49,6 @@ def run_cmd_and_print_output(cmd: List[str]):
 
 
 def git_checkout(commit_id):
-    # cmd_t = subprocess.run(
-    #     ["git", "checkout", "master"],
-    #     check=True,
-    #     stdout=subprocess.PIPE)
-    # print(cmd_t.stdout.decode('utf-8'))
-    # print(cmd_t.stderr.decode('utf-8'))
-    # cmd_t = subprocess.run(
-    #     ["git", "reset", "--hard"],
-    #     check=True,
-    #     stdout=subprocess.PIPE)
     run_cmd_and_print_output(["git", "checkout", "-"])
     run_cmd_and_print_output(["git", "checkout", commit_id])
 
@@ -77,7 +63,7 @@ if __name__ == '__main__':
         required=True
     )
     parser.add_argument(
-        '--commit_id',
+        '--output_file',
         type=str,
         required=True
     )
@@ -87,5 +73,7 @@ if __name__ == '__main__':
     results = []
 
     df = pd.DataFrame(columns=['file', 'secs', 'commit_id', 'commit_time'])
-    run_perf_test(args.commit_id, args.dataset_path, df)
-    df.to_csv(f'{args.commit_id}.csv')
+    run_perf_test(args.output_file, args.dataset_path, df)
+    out_f = Path(args.output_file)
+    print(f'Saving output to {out_f.resolve()}')
+    df.to_csv(f'{out_f.resolve()}')

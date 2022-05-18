@@ -24,43 +24,50 @@ jobs:
         python -m pip install --upgrade pip setuptools wheel
     - name: Get top 5 merges to master
       run: |
+        # Run current performance test
         pwd
+        python3 $SCRIPT_PATH --dataset_path=$DATASET_PATH --output_file=cur
+        git submodule update --recursive --init
+        python3 -m venv venv && source venv/bin/activate
+        if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
+        CUR_DIR=$(pwd)
+        CUR_SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
+        CUR_DATASET_PATH="${CUR_DIR}/performance_tests/performance_dataset"
+        pip3 install . && pip3 install pandas
+        python3 CUR_SCRIPT_PATH --dataset_path=CUR_DATASET_PATH --output_file=cur.csv && deactivate && rm -rf venv; 
+        
+        
+        # Run performance test for previous commit
         git clone https://github.com/acheshkov/program-slicing.git
         cd program-slicing
-        pwd
-        COMMIT_IDS=$(git log --merges --first-parent master --pretty=format:"%H" | head -n 5)
+        COMMIT_IDS=$(git log --merges --first-parent master --pretty=format:"%H" | head -n 1)
         cd ..
-        pwd
-        echo $COMMIT_IDS
-        declare -a theArray
-
-        while read -r COMMIT_IDS
-        do
-            theArray+=("$COMMIT_IDS")            
-        done <<< "$COMMIT_IDS"
-
-        for line in "${theArray[@]}"
-        do
-            echo "Running test for sha $line"
-            ls
-            [ ! -d "program-slicing" ] && git clone https://github.com/acheshkov/program-slicing.git
-            cd program-slicing
-            ls
-            git checkout $line
-            git status
-            git diff slicing/block/block.py
-            git submodule update --recursive --init
-            python3 -m venv venv && source venv/bin/activate
-            if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
-            pip3 install . && pip3 install pandas
-            cd ..
-            CUR_DIR=$(pwd)
-            ls
-            SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
-            DATASET_PATH="${CUR_DIR}/performance_tests/performance_dataset"
-            python3 $SCRIPT_PATH --dataset_path=$DATASET_PATH --commit_id=$line
-            rm -rf program-slicing && deactivate
-        done
-
-      id: get_commits
+        # echo $COMMIT_IDS
         
+        echo "Running test for sha $line"
+        [ ! -d "program-slicing" ] && git clone https://github.com/acheshkov/program-slicing.git
+        cd program-slicing
+        git checkout $line
+        git submodule update --recursive --init
+        python3 -m venv venv && source venv/bin/activate
+        if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
+        pip3 install . && pip3 install pandas
+        cd ..
+        CUR_DIR=$(pwd)
+        SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
+        DATASET_PATH="${CUR_DIR}/performance_tests/performance_dataset"
+    
+        if [ -f $SCRIPT_PATH ]; 
+          then 
+              python3 $SCRIPT_PATH --dataset_path=$DATASET_PATH --output_file=prev.csv;
+          else
+              python3 CUR_SCRIPT_PATH --dataset_path=CUR_DATASET_PATH --output_file=prev.csv;
+        fi
+        
+        pip3 install scipy numpy
+        
+        STAT_SCRIPT_PATH="${CUR_DIR}/performance_tests/stat_test.py"
+        python3 -m unittest "$STAT_SCRIPT_PATH.StatTtest.is_avg_larger"
+        
+        deactivate && rm -rf venv
+        rm -rf program-slicing
