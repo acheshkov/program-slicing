@@ -16,19 +16,30 @@ import argparse
 
 
 def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
-    prev_df = pd.read_csv(cur_csv)
-    cur_df = pd.read_csv(prev_csv)
-    prev_mean = prev_df['diff'].mean()
-    cur_mean = cur_df['diff'].mean()
-    prev_mean_scaled = np.interp(prev_mean, (prev_mean.min(), prev_mean.max()), (-1, +1))
-    cur_mean_scaled = np.interp(cur_mean, (cur_mean.min(), cur_mean.max()), (-1, +1))
-    print('not scaled prev ', prev_df['diff'])
+    prev_samples = pd.read_csv(cur_csv)['diff']
+    cur_samples = pd.read_csv(prev_csv)['diff']
+
+    prev_mean_scaled = np.interp(prev_samples, (prev_samples.min(), prev_samples.max()), (-1, +1))
+    cur_mean_scaled = np.interp(cur_samples, (cur_samples.min(), cur_samples.max()), (-1, +1))
+
+    prev_mean = prev_mean_scaled.mean()
+
+    print('not scaled prev ', prev_samples)
     print('scaled prev', prev_mean_scaled)
-    print('not scaled cur ', cur_df['diff'])
+    print('not scaled cur ', cur_samples)
     print('scaled cur', cur_mean_scaled)
-    t_statistic, pvalue = ttest_ind(prev_mean_scaled, cur_mean_scaled)
-    print(f'Pval {pvalue}')
-    # self.assertLess(pvalue, 0.01)
+
+    # H_0: the mean time of current version is less or equal to mean of previous version
+    # H_1: the mean time of current version is greater than mean of previous version
+    test_res = ttest_ind(cur_samples, prev_mean)
+    # since ttest_ind is written for two-tailed, we correct pval
+    corr_pvalue = 1 - test_res.pvalue / 2
+
+    print(f'Pval {corr_pvalue}')
+    if corr_pvalue < 0.05:
+        raise Exception("we reject null hypothesis; cur version is slower than prev version")
+    else:
+        print("we accept null hypothesis; cur version has the same performance or it is faster than previous version")
 
 
 if __name__ == '__main__':
