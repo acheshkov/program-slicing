@@ -52,13 +52,12 @@ jobs:
         git submodule update --recursive --init
         python3 -m venv venv && source venv/bin/activate
         if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
-        pip3 install . && pip3 install pandas tqdm
+        pip3 install . && pip3 install pandas tqdm scipy numpy
         CUR_DIR=$(pwd)
         SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
         DATASET_PATH="${CUR_DIR}/performance_tests/performance_dataset"
         PREV_VER_PATH_CSV="${CUR_VER_DIR}/prev.csv"
         
-        pip3 install scipy numpy
         if [ -f $SCRIPT_PATH ]; 
           then 
               echo "File $SCRIPT_PATH for prev version exists"
@@ -75,8 +74,6 @@ jobs:
         
               python3 $STAT_SCRIPT_PATH --cur_csv=$CUR_VER_PATH_CSV --prev_csv=$PREV_VER_PATH_CSV
         fi
-        
-
         
         deactivate && rm -rf venv
         rm -rf program-slicing
