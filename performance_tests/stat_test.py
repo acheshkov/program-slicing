@@ -9,7 +9,7 @@ import argparse
 
 def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
     prev_samples = pd.read_csv(cur_csv)['secs']
-    cur_samples = pd.read_csv(prev_csv)['secs'] + 0.03
+    cur_samples = pd.read_csv(prev_csv)['secs']
 
     print('not scaled prev ', prev_samples)
     print('not scaled cur ', cur_samples)
