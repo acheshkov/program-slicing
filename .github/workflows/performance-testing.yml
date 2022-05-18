@@ -71,7 +71,7 @@ jobs:
               STAT_SCRIPT_PATH="${CUR_VER_DIR}/performance_tests/stat_test.py"
               echo "Running prev version of performance test"
               python3 $CUR_SCRIPT_PATH --dataset_path=$CUR_DATASET_PATH --output_file=$PREV_VER_PATH_CSV && deactivate && rm -rf venv; 
-        
+              pip3 freeze
               python3 $STAT_SCRIPT_PATH --cur_csv=$CUR_VER_PATH_CSV --prev_csv=$PREV_VER_PATH_CSV
         fi
         
