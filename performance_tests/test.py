@@ -32,7 +32,7 @@ def run_perf_test(output_file: Optional[str], path: Path, df: pd.DataFrame) -> N
             end = time()
             diff = end - start
             df.append(
-                {'file': filename, 'secs': diff, 'label': output_file, iter: i},
+                {'file': filename, 'secs': diff, 'label': output_file},
                 ignore_index=True)
 
 
