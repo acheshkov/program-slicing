@@ -44,7 +44,7 @@ jobs:
         cd ..
         # echo $COMMIT_IDS
         
-        echo "Running test for sha $COMMIT_IDS"
+        echo "Checkout sha $COMMIT_IDS"
         [ ! -d "program-slicing" ] && git clone https://github.com/acheshkov/program-slicing.git
         cd program-slicing
         
@@ -63,12 +63,14 @@ jobs:
           then 
               echo "File $SCRIPT_PATH for prev version exists"
               STAT_SCRIPT_PATH="${CUR_DIR}/performance_tests/stat_test.py"
+              echo "Running prev version of performance test"
               python3 $SCRIPT_PATH --dataset_path=$DATASET_PATH --output_file=$PREV_VER_PATH_CSV && deactivate && rm -rf venv; 
         
               python3 $STAT_SCRIPT_PATH --cur_csv=$CUR_VER_PATH_CSV --prev_csv=$PREV_VER_PATH_CSV
           else
               echo "File $SCRIPT_PATH for prev version does not exist, running current version of test: $CUR_SCRIPT_PATH"
-              STAT_SCRIPT_PATH="${CUR_VER_DIR}/performance_tests/stat_test.py" $PREV_VER_PATH_CSV
+              STAT_SCRIPT_PATH="${CUR_VER_DIR}/performance_tests/stat_test.py"
+              echo "Running prev version of performance test"
               python3 $CUR_SCRIPT_PATH --dataset_path=$CUR_DATASET_PATH --output_file=$PREV_VER_PATH_CSV && deactivate && rm -rf venv; 
         
               python3 $STAT_SCRIPT_PATH --cur_csv=$CUR_VER_PATH_CSV --prev_csv=$PREV_VER_PATH_CSV
