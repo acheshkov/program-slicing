@@ -43,10 +43,10 @@ jobs:
         cd ..
         # echo $COMMIT_IDS
         
-        echo "Running test for sha $line"
+        echo "Running test for sha $COMMIT_IDS"
         [ ! -d "program-slicing" ] && git clone https://github.com/acheshkov/program-slicing.git
         cd program-slicing
-        git checkout $line
+        git checkout $COMMIT_IDS
         git submodule update --recursive --init
         python3 -m venv venv && source venv/bin/activate
         if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
