@@ -32,7 +32,7 @@ jobs:
         CUR_DIR=$(pwd)
         CUR_SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
         CUR_DATASET_PATH="${CUR_DIR}/performance_tests/performance_dataset"
-        pip3 install . && pip3 install pandas
+        pip3 install . && pip3 install pandas tqdm
         echo "Running perf script for current version"
         python3 $CUR_SCRIPT_PATH --dataset_path=$CUR_DATASET_PATH --output_file=cur.csv && deactivate && rm -rf venv; 
         
@@ -52,7 +52,7 @@ jobs:
         git submodule update --recursive --init
         python3 -m venv venv && source venv/bin/activate
         if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
-        pip3 install . && pip3 install pandas
+        pip3 install . && pip3 install pandas tqdm
         CUR_DIR=$(pwd)
         SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
         DATASET_PATH="${CUR_DIR}/performance_tests/performance_dataset"
