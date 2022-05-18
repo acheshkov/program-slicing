@@ -8,8 +8,8 @@ import argparse
 
 
 def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
-    prev_samples = pd.read_csv(cur_csv)['diff']
-    cur_samples = pd.read_csv(prev_csv)['diff']
+    prev_samples = pd.read_csv(cur_csv)['secs']
+    cur_samples = pd.read_csv(prev_csv)['secs']
 
     prev_mean_scaled = np.interp(prev_samples, (prev_samples.min(), prev_samples.max()), (-1, +1))
     cur_mean_scaled = np.interp(cur_samples, (cur_samples.min(), cur_samples.max()), (-1, +1))
