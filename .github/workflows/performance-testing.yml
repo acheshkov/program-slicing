@@ -26,7 +26,6 @@ jobs:
       run: |
         # Run current performance test
         pwd
-        python3 $SCRIPT_PATH --dataset_path=$DATASET_PATH --output_file=cur
         git submodule update --recursive --init
         python3 -m venv venv && source venv/bin/activate
         if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
