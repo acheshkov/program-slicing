@@ -46,23 +46,23 @@ jobs:
         echo "Running test for sha $COMMIT_IDS"
         [ ! -d "program-slicing" ] && git clone https://github.com/acheshkov/program-slicing.git
         cd program-slicing
+        
         git checkout $COMMIT_IDS
         git submodule update --recursive --init
         python3 -m venv venv && source venv/bin/activate
         if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
         pip3 install . && pip3 install pandas
-        cd ..
         CUR_DIR=$(pwd)
         SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
         DATASET_PATH="${CUR_DIR}/performance_tests/performance_dataset"
     
         if [ -f $SCRIPT_PATH ]; 
           then 
-              echo "File $SCRIPT_PATH exists"
+              echo "File $SCRIPT_PATH fo prev version exists"
               python3 $SCRIPT_PATH --dataset_path=$DATASET_PATH --output_file=prev.csv;
         
           else
-              echo "File $SCRIPT_PATH does not exists, running current version of test: $CUR_SCRIPT_PATH"
+              echo "File $SCRIPT_PATH fro prev version does not exists, running current version of test: $CUR_SCRIPT_PATH"
               python3 CUR_SCRIPT_PATH --dataset_path=CUR_DATASET_PATH --output_file=prev.csv;
         fi
         
