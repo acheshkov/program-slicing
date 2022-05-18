@@ -29,12 +29,13 @@ jobs:
         git submodule update --recursive --init
         python3 -m venv venv && source venv/bin/activate
         if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
-        CUR_DIR=$(pwd)
-        CUR_SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
-        CUR_DATASET_PATH="${CUR_DIR}/performance_tests/performance_dataset"
+        CUR_VER_DIR=$(pwd)
+        CUR_VER_PATH_CSV="${CUR_VER_DIR}/cur.csv"
+        CUR_SCRIPT_PATH="${CUR_VER_DIR}/performance_tests/test.py"
+        CUR_DATASET_PATH="${CUR_VER_DIR}/performance_tests/performance_dataset"
         pip3 install . && pip3 install pandas tqdm
         echo "Running perf script for current version"
-        python3 $CUR_SCRIPT_PATH --dataset_path=$CUR_DATASET_PATH --output_file=cur.csv && deactivate && rm -rf venv; 
+        python3 $CUR_SCRIPT_PATH --dataset_path=$CUR_DATASET_PATH --output_file=$CUR_VER_PATH_CSV && deactivate && rm -rf venv; 
         
         
         # Run performance test for previous commit
@@ -56,21 +57,25 @@ jobs:
         CUR_DIR=$(pwd)
         SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
         DATASET_PATH="${CUR_DIR}/performance_tests/performance_dataset"
-    
+        PREV_VER_PATH_CSV="${CUR_VER_DIR}/prev.csv"
+        
+        pip3 install scipy numpy
         if [ -f $SCRIPT_PATH ]; 
           then 
               echo "File $SCRIPT_PATH for prev version exists"
-              python3 $SCRIPT_PATH --dataset_path=$DATASET_PATH --output_file=prev.csv;
+              python3 $SCRIPT_PATH --dataset_path=$DATASET_PATH --output_file=$PREV_VER_PATH_CSV;
+              STAT_SCRIPT_PATH="${CUR_DIR}/performance_tests/stat_test.py"
+              python3 -m unittest "${STAT_SCRIPT_PATH}.StatTtest.is_avg_larger"
         
           else
               echo "File $SCRIPT_PATH for prev version does not exists, running current version of test: $CUR_SCRIPT_PATH"
-              python3 $CUR_SCRIPT_PATH --dataset_path=$CUR_DATASET_PATH --output_file=prev.csv;
+              python3 $CUR_SCRIPT_PATH --dataset_path=$CUR_DATASET_PATH --output_file=$PREV_VER_PATH_CSV;
+        
+              STAT_SCRIPT_PATH="${CUR_VER_DIR}/performance_tests/stat_test.py"
+              python3 -m unittest "${STAT_SCRIPT_PATH}.StatTtest.is_avg_larger"
         fi
         
-        pip3 install scipy numpy
-        
-        STAT_SCRIPT_PATH="${CUR_DIR}/performance_tests/stat_test.py"
-        python3 -m unittest "$STAT_SCRIPT_PATH.StatTtest.is_avg_larger"
+
         
         deactivate && rm -rf venv
         rm -rf program-slicing
