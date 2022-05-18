@@ -1,8 +1,9 @@
 from unittest import TestCase, main
 
-import numpy as np
 from scipy.stats import ttest_ind
 from pathlib import Path
+import numpy as np
+
 import argparse
 
 
