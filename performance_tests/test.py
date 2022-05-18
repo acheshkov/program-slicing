@@ -5,6 +5,7 @@ from collections import defaultdict
 from pathlib import Path
 from time import time
 from typing import Optional, List
+from tqdm import tqdm
 
 import pandas as pd
 from program_graphs.adg import parse_java
@@ -21,20 +22,18 @@ warnings.filterwarnings('ignore')  # Ignore everything
 def run_perf_test(output_file: Optional[str], path: Path, df: pd.DataFrame) -> None:
     print(f'Running for {output_file}...')
     files = [x for x in path.rglob('**/*.java') if x.is_file()]
-    for i in range(100):
-        for dataset_file in files:
-            filename = dataset_file.name
-            with open(dataset_file) as f:
-                print(dataset_file)
-                method_code = "class Foo {" + f.read() + "}"
-                start = time()
-                adg = parse_java(method_code)
-                list(gen_block_slices(adg, method_code, [mk_max_min_ncss_filter(50, 4)]))
-                end = time()
-                diff = end - start
-                df.append(
-                    {'file': filename, 'secs': diff, 'label': output_file, iter: i},
-                    ignore_index=True)
+    for dataset_file in tqdm(files):
+        filename = dataset_file.name
+        with open(dataset_file) as f:
+            method_code = "class Foo {" + f.read() + "}"
+            start = time()
+            adg = parse_java(method_code)
+            list(gen_block_slices(adg, method_code, [mk_max_min_ncss_filter(50, 4)]))
+            end = time()
+            diff = end - start
+            df.append(
+                {'file': filename, 'secs': diff, 'label': output_file, iter: i},
+                ignore_index=True)
 
 
 def run_cmd_and_print_output(cmd: List[str]):

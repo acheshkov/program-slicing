@@ -33,7 +33,8 @@ jobs:
         CUR_SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
         CUR_DATASET_PATH="${CUR_DIR}/performance_tests/performance_dataset"
         pip3 install . && pip3 install pandas
-        python3 CUR_SCRIPT_PATH --dataset_path=CUR_DATASET_PATH --output_file=cur.csv && deactivate && rm -rf venv; 
+        echo "Running perf script for current version"
+        python3 $CUR_SCRIPT_PATH --dataset_path=$CUR_DATASET_PATH --output_file=cur.csv && deactivate && rm -rf venv; 
         
         
         # Run performance test for previous commit
