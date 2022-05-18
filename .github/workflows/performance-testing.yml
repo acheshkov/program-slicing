@@ -66,6 +66,12 @@ jobs:
               python3 $SCRIPT_PATH --dataset_path=$DATASET_PATH --output_file=$PREV_VER_PATH_CSV
         
               python3 $STAT_SCRIPT_PATH --cur_csv=$CUR_VER_PATH_CSV --prev_csv=$PREV_VER_PATH_CSV
+              if [ $? -eq 0 ]
+              then
+                exit 0
+              else
+                exit 1
+              fi
           else
               echo "File $SCRIPT_PATH for prev version does not exist, running current version of test: $CUR_SCRIPT_PATH"
               STAT_SCRIPT_PATH="${CUR_VER_DIR}/performance_tests/stat_test.py"
@@ -76,6 +82,12 @@ jobs:
               python3 $STAT_SCRIPT_PATH --cur_csv=$CUR_VER_PATH_CSV --prev_csv=$PREV_VER_PATH_CSV
               STAT_SCRIPT_PATH="${CUR_VER_DIR}/performance_tests/stat_test_large.py"
               python3 $STAT_SCRIPT_PATH --cur_csv=$CUR_VER_PATH_CSV --prev_csv=$PREV_VER_PATH_CSV
+              if [ $? -eq 0 ]
+              then
+                exit 0
+              else
+                exit 1
+              fi
         fi
         
         deactivate && rm -rf venv

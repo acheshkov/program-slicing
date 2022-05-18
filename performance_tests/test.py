@@ -19,8 +19,8 @@ import argparse
 warnings.filterwarnings('ignore')  # Ignore everything
 
 
-def run_perf_test(output_file: Optional[str], path: Path, df: pd.DataFrame) -> None:
-    print(f'Running for {output_file}...')
+def run_perf_test(output_file: Optional[str], path: Path) -> None:
+    df = pd.DataFrame(columns=['file', 'secs'])
     files = [x for x in path.rglob('**/*.java') if x.is_file()]
     for dataset_file in tqdm(files):
         filename = dataset_file.name
@@ -31,9 +31,12 @@ def run_perf_test(output_file: Optional[str], path: Path, df: pd.DataFrame) -> N
             list(gen_block_slices(adg, method_code, [mk_max_min_ncss_filter(50, 4)]))
             end = time()
             diff = end - start
-            df.append(
-                {'file': filename, 'secs': diff, 'label': output_file},
+            df = df.append(
+                {'file': filename, 'secs': diff},
                 ignore_index=True)
+
+    print(f'Saving output to {output_file}')
+    df.to_csv(output_file)
 
 
 def run_cmd_and_print_output(cmd: List[str]):
@@ -71,8 +74,5 @@ if __name__ == '__main__':
     time_arr = []
     results = []
 
-    df = pd.DataFrame(columns=['file', 'secs', 'commit_id', 'commit_time'])
-    run_perf_test(args.output_file, args.dataset_path, df)
-    out_f = Path(args.output_file)
-    print(f'Saving output to {out_f.resolve()}')
-    df.to_csv(f'{out_f.resolve()}')
+    out_f = Path(args.output_file).resolve()
+    run_perf_test(out_f, args.dataset_path)
