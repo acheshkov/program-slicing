@@ -15,7 +15,7 @@ from datetime import datetime
 import subprocess
 import os
 import argparse
-
+import numpy as np
 warnings.filterwarnings('ignore')  # Ignore everything
 
 
@@ -24,15 +24,20 @@ def run_perf_test(output_file: Optional[str], path: Path) -> None:
     files = [x for x in path.rglob('**/*.java') if x.is_file()]
     for dataset_file in tqdm(files):
         filename = dataset_file.name
+        times_to_repeat = 200
         with open(dataset_file) as f:
+            times_arr = []
             method_code = "class Foo {" + f.read() + "}"
-            start = time()
             adg = parse_java(method_code)
-            list(gen_block_slices(adg, method_code, [mk_max_min_ncss_filter(50, 4)]))
-            end = time()
-            diff = end - start
+            for _ in range(times_to_repeat):
+                start = time()
+                list(gen_block_slices(adg, method_code, [mk_max_min_ncss_filter(50, 4)]))
+                end = time()
+                diff = end - start
+                times_arr.append(diff)
+            mean_time = np.mean(times_arr)
             df = df.append(
-                {'file': filename, 'secs': diff},
+                {'file': filename, 'secs': mean_time},
                 ignore_index=True)
 
     print(f'Saving output to {output_file}')

@@ -5,23 +5,29 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import argparse
+import math
 
 
 def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
-    prev_samples = pd.read_csv(cur_csv)['secs']
-    cur_samples = pd.read_csv(prev_csv)['secs']
+    prev_samples = pd.read_csv(cur_csv)
+    cur_samples = {x['file']: x['secs'] for _, x in pd.read_csv(prev_csv).iterrows()}
+    was_at_least_one_degradation = False
+    res = {}
+    for _, row in prev_samples.iterrows():
+        current_time = cur_samples.get(row['file'])
+        last_commit_time = row['secs']
+        was_degraded = not np.less_equal(current_time, last_commit_time)
+        if was_degraded:
+            was_at_least_one_degradation = True
+            res[row['file']] = (last_commit_time, current_time)
 
-    print('not scaled prev ', prev_samples)
-    print('not scaled cur ', cur_samples)
-    print('prev mean', prev_samples.mean())
-    print('cur mean', cur_samples.mean())
-    _, pvalue = ttest_1samp(cur_samples.tolist(), prev_samples.mean(), alternative='greater')
-    print(f'Pval orig {pvalue}')
-
-    if pvalue < 0.01:
-        raise Exception("we reject null hypothesis; cur version is slower than prev version")
+    if was_at_least_one_degradation:
+        for file, times in res.items():
+            print(f'Performance degradation for {file} from {times[0]} secs to {times[1]}')
+        exit(1)
     else:
-        print("we accept null hypothesis; cur version has the same performance or it is faster than previous version")
+        print('There is no performance degradation')
+        exit(0)
 
 
 if __name__ == '__main__':
