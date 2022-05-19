@@ -1,6 +1,6 @@
 from unittest import TestCase, main
 
-from scipy.stats import ttest_ind
+from pingouin import ttest
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -10,29 +10,33 @@ from collections import defaultdict
 
 
 def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
-    prev_samples = defaultdict(list)
     cur_samples = defaultdict(list)
-    for _, row in pd.read_csv(prev_csv).iterrows():
-        prev_samples[row['file']].append(row['secs'])
-    for _, row in pd.read_csv(cur_csv).iterrows():
-        cur_samples[row['file']].append(row['secs'])
+    prev_samples = defaultdict(list)
 
-    res = {}
+    for _, x in pd.read_csv(cur_csv).iterrows():
+        cur_samples[x['file']].append(x['secs'])
+
+    for _, x in pd.read_csv(prev_csv).iterrows():
+        prev_samples[x['file']].append(x['secs'])
+
     was_at_least_one_degradation = False
-    for filename, lst_with_secs in cur_samples.items():
-        secs_for_prev_commit = prev_samples.get(filename)
-        print(lst_with_secs)
-        print(secs_for_prev_commit)
-        _, pvalue = ttest_ind(lst_with_secs, secs_for_prev_commit, alternative='greater')
+    res = {}
+    for filename, prev_lst_times in prev_samples.items():
+        current_lst_times = cur_samples.get(filename)
+        print(current_lst_times)
+        print(prev_lst_times)
+        _, pvalue = ttest(current_lst_times, prev_lst_times, alternative='greater')
         print(f'Pval orig {pvalue}')
-
         if pvalue < 0.01:
-            was_at_least_one_degradation = False
-            print(f'{filename}: prev avg: {np.mean(secs_for_prev_commit)}; current avg: {np.mean(lst_with_secs)}')
+            was_at_least_one_degradation = True
+            mean_cur = np.mean(current_lst_times)
+            mean_prev = np.mean(prev_lst_times)
+            res[filename] = (mean_cur, mean_prev)
             print("we reject null hypothesis; cur version is slower than prev version")
+            print("{filename} prev: {mean_prev}; cur: {mean_cur}")
         # else:
-        #     print("we accept null hypothesis; cur version has the same performance"
-        #           " or it is faster than previous version")
+        #     print(
+        #         "we accept null hypothesis; cur version has the same performance or it is faster than previous version")
 
     if was_at_least_one_degradation:
         exit(1)

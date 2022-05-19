@@ -26,16 +26,19 @@ def run_perf_test(output_file: Optional[str], path: Path) -> None:
         filename = dataset_file.name
         times_to_repeat = 200
         with open(dataset_file) as f:
+            times_arr = []
             method_code = "class Foo {" + f.read() + "}"
             adg = parse_java(method_code)
-            for i in range(times_to_repeat):
+            for _ in range(times_to_repeat):
                 start = time()
                 list(gen_block_slices(adg, method_code, [mk_max_min_ncss_filter(50, 4)]))
                 end = time()
                 diff = end - start
-                df = df.append(
-                    {'file': filename, 'secs': diff, 'iter': i},
-                    ignore_index=True)
+                times_arr.append(diff)
+            mean_time = np.mean(times_arr)
+            df = df.append(
+                {'file': filename, 'secs': mean_time},
+                ignore_index=True)
 
     print(f'Saving output to {output_file}')
     df.to_csv(output_file)
@@ -71,6 +74,7 @@ if __name__ == '__main__':
         type=str,
         required=True
     )
+
     args = parser.parse_args()
 
     time_arr = []
