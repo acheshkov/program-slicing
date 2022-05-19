@@ -1,29 +1,40 @@
 from unittest import TestCase, main
 
-from scipy.stats import ttest_1samp
+from scipy.stats import ttest_ind
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import argparse
 import math
+from collections import defaultdict
 
 
 def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
-    prev_samples = pd.read_csv(cur_csv)
-    cur_samples = {x['file']: x['secs'] for _, x in pd.read_csv(prev_csv).iterrows()}
-    was_at_least_one_degradation = False
+    prev_samples = defaultdict(list)
+    cur_samples = defaultdict(list)
+    for _, row in pd.read_csv(prev_csv).iterrows():
+        prev_samples[row['file']].append(row['secs'])
+    for _, row in pd.read_csv(cur_csv).iterrows():
+        cur_samples[row['file']].append(row['secs'])
+
     res = {}
-    for _, row in prev_samples.iterrows():
-        current_time = cur_samples.get(row['file'])
-        last_commit_time = row['secs']
-        was_degraded = not np.less_equal(current_time, last_commit_time)
-        if was_degraded:
-            was_at_least_one_degradation = True
-            res[row['file']] = (last_commit_time, current_time)
+    was_at_least_one_degradation = False
+    for filename, lst_with_secs in cur_samples.items():
+        secs_for_prev_commit = prev_samples.get(filename)
+        print(lst_with_secs)
+        print(secs_for_prev_commit)
+        _, pvalue = ttest_ind(lst_with_secs, secs_for_prev_commit, alternative='greater')
+        print(f'Pval orig {pvalue}')
+
+        if pvalue < 0.01:
+            was_at_least_one_degradation = False
+            print(f'{filename}: prev avg: {np.mean(secs_for_prev_commit)}; current avg: {np.mean(lst_with_secs)}')
+            print("we reject null hypothesis; cur version is slower than prev version")
+        # else:
+        #     print("we accept null hypothesis; cur version has the same performance"
+        #           " or it is faster than previous version")
 
     if was_at_least_one_degradation:
-        for file, times in res.items():
-            print(f'Performance degradation for {file} from {times[0]} secs to {times[1]}')
         exit(1)
     else:
         print('There is no performance degradation')

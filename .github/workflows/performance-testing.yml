@@ -22,7 +22,7 @@ jobs:
         sudo apt install -y build-essential 
         sudo apt-get install -y manpages-dev
         python -m pip install --upgrade pip setuptools wheel
-    - name: Get top 5 merges to master
+    - name: Get top 1 merge to master and compare performance with current implementation
       run: |
         # Run current performance test
         pwd
