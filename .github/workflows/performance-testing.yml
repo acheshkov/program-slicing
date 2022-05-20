@@ -52,7 +52,7 @@ jobs:
         git submodule update --recursive --init
         python3 -m venv venv && source venv/bin/activate
         if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
-        pip3 install . && pip3 install pandas tqdm scipy numpy
+        pip3 install . && pip3 install pandas tqdm pingouin numpy
         CUR_DIR=$(pwd)
         SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
         DATASET_PATH="${CUR_DIR}/performance_tests/performance_dataset"
@@ -65,12 +65,6 @@ jobs:
               echo "Running prev version of performance test"
               python3 $SCRIPT_PATH --dataset_path=$DATASET_PATH --output_file=$PREV_VER_PATH_CSV
               python3 $STAT_SCRIPT_PATH --cur_csv=$CUR_VER_PATH_CSV --prev_csv=$PREV_VER_PATH_CSV
-              if [ $? -eq 0 ]
-              then
-                exit 0
-              else
-                exit 1
-              fi
           else
               echo "File $SCRIPT_PATH for prev version does not exist, running current version of test: $CUR_SCRIPT_PATH"
               STAT_SCRIPT_PATH="${CUR_VER_DIR}/performance_tests/stat_test.py"
@@ -79,12 +73,6 @@ jobs:
               echo "Running prev version of performance test"
 
               python3 $STAT_SCRIPT_PATH --cur_csv=$CUR_VER_PATH_CSV --prev_csv=$PREV_VER_PATH_CSV
-              if [ $? -eq 0 ]
-              then
-                exit 0
-              else
-                exit 1
-              fi
         fi
         
         deactivate && rm -rf venv
