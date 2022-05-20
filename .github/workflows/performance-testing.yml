@@ -89,3 +89,5 @@ jobs:
         
         deactivate && rm -rf venv
         rm -rf program-slicing
+        cat "output.md" >> $GITHUB_STEP_SUMMARY
+    
