@@ -14,7 +14,7 @@ def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
     prev_samples = defaultdict(list)
 
     for _, x in pd.read_csv(cur_csv).iterrows():
-        cur_samples[x['file']].append(x['secs'])
+        cur_samples[x['file']].append(x['secs'] + 0.02)
 
     for _, x in pd.read_csv(prev_csv).iterrows():
         prev_samples[x['file']].append(x['secs'])
@@ -23,21 +23,18 @@ def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
     res = {}
     for filename, prev_lst_times in prev_samples.items():
         current_lst_times = cur_samples.get(filename)
-        print(current_lst_times)
-        print(prev_lst_times)
-        _, pvalue = ttest(current_lst_times, prev_lst_times, alternative='greater')
-        print(f'Pval orig {pvalue}')
-        if pvalue < 0.01:
+        res = ttest(current_lst_times, prev_lst_times, alternative='greater')
+        pvalue = res['p-val'].astype(float).tolist()[0]
+        if np.less_equal(pvalue, 0.05):
             was_at_least_one_degradation = True
             mean_cur = np.mean(current_lst_times)
             mean_prev = np.mean(prev_lst_times)
-            res[filename] = (mean_cur, mean_prev)
-            print("we reject null hypothesis; cur version is slower than prev version")
-            print(f"{filename} prev: {mean_prev}; cur: {mean_cur}")
-        # else:
-        #     print(
-        #         "we accept null hypothesis; cur version has the same performance or it is faster than previous version")
-
+            #res[filename] = (mean_cur, mean_prev)
+            print(f"we reject null hypothesis; cur version is slower than prev version; {filename} prev: {mean_prev}; cur: {mean_cur}; pval: {pvalue}")
+        else:
+            # print(
+            #     "we accept null hypothesis; cur version has the same performance or it is faster than previous version")
+            continue
     if was_at_least_one_degradation:
         exit(1)
     else:
