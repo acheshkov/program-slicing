@@ -47,16 +47,15 @@ def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
 
 
 def draw_table(output_d):
-    header = '''| Filename | Mean previous | Mean current | Diff |
-    | ------------ | ----------------- | ---------------- | -------- |'''
-    print(header)
+    print('''| Filename | Mean previous | Mean current | Diff |\n''')
+    print('''| ------------ | ----------------- | ---------------- | -------- |\n''')
     for filename, temp_d in output_d.items():
         diff = np.round(temp_d['diff'], 5)
         hyp = temp_d['ttest']
         mean_prev = np.round(temp_d['mean_prev'], 5)
         mean_cur = np.round(temp_d['mean_cur'], 5)
         cur_str = f'''|  {filename}  |  {mean_prev}  |   {mean_cur}  |'''
-        print(cur_str, end='')
+        print(cur_str)
         column = f'''    {diff} |'''
         if hyp:
             column = f'''    <span style="color:red">+{diff}</span> |'''
@@ -65,7 +64,7 @@ def draw_table(output_d):
         elif np.less(diff, 0.00000000000000000000001):
             column = f'''    <span style="color:green">{diff}</span> |'''
 
-        print(column)
+        print(column + '\n')
 
 
 if __name__ == '__main__':
