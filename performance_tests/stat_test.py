@@ -23,7 +23,6 @@ def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
     was_at_least_one_degradation = False
     output_d = {}
     for filename, prev_lst_times in prev_samples.items():
-        print(filename)
         current_lst_times = cur_samples.get(filename)
         res = ttest(current_lst_times, prev_lst_times, alternative='greater')
         pvalue = res['p-val'].astype(float).tolist()[0]

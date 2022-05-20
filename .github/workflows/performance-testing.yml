@@ -75,7 +75,4 @@ jobs:
               python3 $STAT_SCRIPT_PATH --cur_csv=$CUR_VER_PATH_CSV --prev_csv=$PREV_VER_PATH_CSV
         fi
         
-        deactivate && rm -rf venv
-        rm -rf program-slicing
-        cat "output.md" >> $GITHUB_STEP_SUMMARY
-    
+        cat output.md >> $GITHUB_STEP_SUMMARY
