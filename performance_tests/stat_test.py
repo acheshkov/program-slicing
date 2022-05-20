@@ -45,12 +45,6 @@ def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
 
     draw_table(output_d)
 
-    if was_at_least_one_degradation:
-        exit(1)
-    else:
-        print('There is no performance degradation')
-        exit(0)
-
 
 def draw_table(output_d):
     header = '''| Filename | Mean previous | Mean current | Diff |
