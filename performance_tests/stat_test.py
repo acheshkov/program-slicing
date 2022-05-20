@@ -65,6 +65,7 @@ def draw_table(output_d):
             mean_cur = np.round(temp_d['mean_cur'], 5)
             cur_str = f'''|  {filename}  |  {mean_prev}  |   {mean_cur}  |'''
             w.write(cur_str)
+            column = f'''    {diff} |'''
             if hyp:
                 column = f'''    <span style="color:red">+{diff}</span> |'''
             elif np.isclose(diff, 0.00000000000000000000001):
