@@ -33,7 +33,7 @@ def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
             mean_prev = np.mean(prev_lst_times)
             res[filename] = (mean_cur, mean_prev)
             print("we reject null hypothesis; cur version is slower than prev version")
-            print("{filename} prev: {mean_prev}; cur: {mean_cur}")
+            print(f"{filename} prev: {mean_prev}; cur: {mean_cur}")
         # else:
         #     print(
         #         "we accept null hypothesis; cur version has the same performance or it is faster than previous version")
