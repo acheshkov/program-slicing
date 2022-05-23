@@ -20,7 +20,6 @@ def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
     for _, x in pd.read_csv(prev_csv).iterrows():
         prev_samples[x['file']].append(x['secs'])
 
-    was_at_least_one_degradation = False
     output_d = {}
     for filename, prev_lst_times in prev_samples.items():
         current_lst_times = cur_samples.get(filename)
@@ -31,7 +30,6 @@ def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
         t_val = {'mean_prev': mean_prev, 'mean_cur': mean_cur, 'diff': mean_cur - mean_prev, 'ttest': False}
         hyp = np.less_equal(pvalue, 0.05)
         if hyp:
-            was_at_least_one_degradation = True
             t_val['ttest'] = True
             t_val['pvalue'] = pvalue
             output_d[filename] = t_val
@@ -47,15 +45,15 @@ def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
 
 
 def draw_table(output_d):
-    print('''| Filename | Mean previous | Mean current | Diff |\n''')
-    print('''| ------------ | ----------------- | ---------------- | -------- |\n''')
+    print('''| Filename | Mean previous | Mean current | Diff |''')
+    print('''| ------------ | ----------------- | ---------------- | -------- |''')
     for filename, temp_d in output_d.items():
         diff = np.round(temp_d['diff'], 5)
         hyp = temp_d['ttest']
         mean_prev = np.round(temp_d['mean_prev'], 5)
         mean_cur = np.round(temp_d['mean_cur'], 5)
         cur_str = f'''|  {filename}  |  {mean_prev}  |   {mean_cur}  |'''
-        print(cur_str)
+        print(cur_str, end='')
         column = f'''    {diff} |'''
         if hyp:
             column = f'''    <span style="color:red">+{diff}</span> |'''
@@ -64,7 +62,7 @@ def draw_table(output_d):
         elif np.less(diff, 0.00000000000000000000001):
             column = f'''    <span style="color:green">{diff}</span> |'''
 
-        print(column + '\n')
+        print(column)
 
 
 if __name__ == '__main__':

@@ -73,5 +73,5 @@ jobs:
               python3 $CUR_SCRIPT_PATH --dataset_path=$CUR_DATASET_PATH --output_file=$PREV_VER_PATH_CSV 
               echo "Running stat test"
               TABLE=$(python3 $STAT_SCRIPT_PATH --cur_csv=$CUR_VER_PATH_CSV --prev_csv=$PREV_VER_PATH_CSV)
-              echo $TABLE >> $GITHUB_STEP_SUMMARY
+              echo "$TABLE" >> $GITHUB_STEP_SUMMARY
         fi

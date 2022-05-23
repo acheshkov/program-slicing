@@ -27,7 +27,7 @@ def run_perf_test(output_file: Optional[str], path: Path) -> None:
             filename = dataset_file.name
             method_code = "class Foo {" + f.read() + "}"
             adg = parse_java(method_code)
-            times_to_repeat = 200
+            times_to_repeat = 20
             for i in range(times_to_repeat):
                 start = time()
                 list(gen_block_slices(adg, method_code, [mk_max_min_ncss_filter(50, 4)]))
