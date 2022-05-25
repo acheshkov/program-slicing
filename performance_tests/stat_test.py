@@ -8,16 +8,23 @@ import argparse
 import math
 from collections import defaultdict
 import json
+from sklearn.preprocessing import MinMaxScaler
 
 
 def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
     cur_samples = defaultdict(list)
     prev_samples = defaultdict(list)
+    scaler_prev = MinMaxScaler()
+    scaler_cur = MinMaxScaler()
 
-    for _, x in pd.read_csv(cur_csv).iterrows():
+    df_cur = pd.read_csv(cur_csv)
+    df_prev = pd.read_csv(prev_csv)
+    df_cur[['secs']] = scaler_cur.fit_transform(df_cur[['secs']])
+    df_prev[['secs']] = scaler_prev.fit_transform(df_prev[['secs']])
+    for _, x in df_cur.iterrows():
         cur_samples[x['file']].append(x['secs'])
 
-    for _, x in pd.read_csv(prev_csv).iterrows():
+    for _, x in df_prev.iterrows():
         prev_samples[x['file']].append(x['secs'])
 
     output_d = {}
@@ -35,8 +42,8 @@ def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
                  'var_prev': np.var(prev_lst_times),
                  'var_cur': np.var(current_lst_times),
                  'nob': need_number}
-
-        hyp = np.less_equal(pvalue, 0.05)
+        alfa = 0.05 / 2
+        hyp = np.less_equal(pvalue, alfa)
         if hyp:
             t_val['ttest'] = True
             t_val['pvalue'] = pvalue
@@ -53,8 +60,8 @@ def is_avg_larger(cur_csv: Path, prev_csv: Path) -> None:
 
 
 def draw_table(output_d):
-    print('''| Filename | Mean previous | Mean current | Diff | Pvalue | Power | Var previous | Var current | Cohen-d | Number of observations''')
-    print('''| ------------ | ----------------- | ---------------- | -------- | ----------------- | ----------------- | ----------------- | ----------------- | ----------------- | ----------------- |''')
+    print('''| Filename | Mean previous | Mean current | Diff | Pvalue | Power | Var previous | Var current | Cohen-d | Number of observations | Ttest ''')
+    print('''| ------------ | ----------------- | ---------------- | -------- | ----------------- | ----------------- | ----------------- | ----------------- | ----------------- | ----------------- | ----------------- |''')
     for filename, temp_d in output_d.items():
         diff = np.round(temp_d['diff'], 5)
         hyp = temp_d['ttest']
@@ -77,7 +84,11 @@ def draw_table(output_d):
         power = round(temp_d['power'], 5)
         cohen = round(temp_d['cohen'], 5)
         nob = int(temp_d['nob'])
-        print(f'''|     {pval} |    {power}  |  {var_prev}  |   {var_cur}  |    {cohen} |   {nob}  |''')
+        print(f'''|     {pval} |    {power}  |  {var_prev}  |   {var_cur}  |    {cohen} |   {nob}  |''', end='')
+        if temp_d['ttest']:
+            print(f'''  &#x274C;   |''')
+        else:
+            print(f'''  &#10004;   |''')
 
 
 if __name__ == '__main__':
