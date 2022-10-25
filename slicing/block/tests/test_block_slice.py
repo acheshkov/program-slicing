@@ -6,7 +6,7 @@ from program_graphs.adg.parser.java.parser import parse  # type: ignore
 
 from slicing.block.block import gen_block_slices
 from slicing.block.block import get_entry_candidates, get_node_lines, mk_declared_variables_table
-from slicing.block.filters import at_least_one_block_stmt, last_or_next_statement_is_control
+from slicing.block.filters import at_least_one_block_stmt, last_or_next_statement_is_control, mk_max_min_ncss_filter
 from slicing.block.state import State
 from slicing.block.utils import get_occupied_line_range, count_ncss, find_blank_and_full_comment_lines
 
@@ -529,6 +529,31 @@ class TestBlockSlice(TestCase):
         [if_node] = [node for node, name in adg.nodes(data='name') if name == 'if']
         r = get_occupied_line_range(adg.to_ast(), if_node)
         self.assertEqual(r, ((1, 8), (4, 20)))
+
+    def test_get_duplicated_examples(self) -> None:
+        code = """
+        class Foo {
+            public void method () {
+            for (Integer visibilityLine : visibilityLines) {
+                    List<Integer> lineLevel = new ArrayList<>();
+                    lineLevel.add(visibilityLine);
+                }
+            }
+        }
+        """
+        max_amount_of_effective_lines = 50
+        min_lines_emo = 4
+        adg = parse(code)
+        slices = list(gen_block_slices
+                      (adg,
+                       code,
+                       [mk_max_min_ncss_filter(max_amount_of_effective_lines, min_lines_emo),
+                        at_least_one_block_stmt, last_or_next_statement_is_control]))
+        slices_with_lines = [
+            (s.line_range[0][0], s.line_range[1][0]) for s in sorted(slices, key=lambda x: (x.line_range[0][0], x.line_range[1][0]))
+        ]
+        print(slices_with_lines)
+        self.assertEqual(slices_with_lines, [(3, 6)])
 
 
 if __name__ == '__main__':
