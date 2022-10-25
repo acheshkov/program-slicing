@@ -6,7 +6,7 @@ from program_graphs.adg.parser.java.parser import parse  # type: ignore
 
 from slicing.block.block import gen_block_slices
 from slicing.block.block import get_entry_candidates, get_node_lines, mk_declared_variables_table
-from slicing.block.filters import at_least_one_block_stmt, last_or_next_statement_is_control, mk_max_min_ncss_filter
+from slicing.block.filters import at_least_one_block_stmt, last_or_next_statement_is_control
 from slicing.block.state import State
 from slicing.block.utils import get_occupied_line_range, count_ncss, find_blank_and_full_comment_lines
 
@@ -538,7 +538,7 @@ class TestBlockSlice(TestCase):
         """
         adg = parse(code)
         bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
-        self.assertCountEqual([[1, 2, 3],  [2]], bss)
+        self.assertCountEqual([[1, 2, 3], [2]], bss)
 
 
 if __name__ == '__main__':
