@@ -1,0 +1,77 @@
+name: Performance Tests
+
+on: [push]
+
+jobs:
+  run_tests:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential 
+        sudo apt-get install -y manpages-dev
+        python -m pip install --upgrade pip setuptools wheel
+    - name: Get top 1 merge to master and compare performance with current implementation
+      run: |
+        # Run current performance test
+        pwd
+        git submodule update --recursive --init
+        python3 -m venv venv && source venv/bin/activate
+        if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
+        CUR_VER_DIR=$(pwd)
+        CUR_VER_PATH_CSV="${CUR_VER_DIR}/cur.csv"
+        CUR_SCRIPT_PATH="${CUR_VER_DIR}/performance_tests/test.py"
+        CUR_DATASET_PATH="${CUR_VER_DIR}/performance_tests/performance_dataset"
+        pip3 install . && pip3 install pandas tqdm
+        echo "Running perf script for current version"
+        python3 $CUR_SCRIPT_PATH --dataset_path=$CUR_DATASET_PATH --output_file=$CUR_VER_PATH_CSV && deactivate && rm -rf venv; 
+             
+        # Run performance test for previous commit
+        git clone https://github.com/acheshkov/program-slicing.git
+        cd program-slicing
+        COMMIT_IDS=$(git log --merges --first-parent master --pretty=format:"%H" | head -n 1)
+        cd ..
+        # echo $COMMIT_IDS
+        
+        echo "Checkout sha $COMMIT_IDS"
+        [ ! -d "program-slicing" ] && git clone https://github.com/acheshkov/program-slicing.git
+        cd program-slicing
+        
+        git checkout $COMMIT_IDS
+        git submodule update --recursive --init
+        python3 -m venv venv && source venv/bin/activate
+        if [ -f requirements/default.txt ]; then pip install -r requirements/default.txt; fi
+        pip3 install . && pip3 install pandas tqdm pingouin numpy
+        CUR_DIR=$(pwd)
+        SCRIPT_PATH="${CUR_DIR}/performance_tests/test.py"
+        DATASET_PATH="${CUR_DIR}/performance_tests/performance_dataset"
+        PREV_VER_PATH_CSV="${CUR_VER_DIR}/prev.csv"
+        
+        if [ -f $SCRIPT_PATH ]; 
+          then 
+              echo "File $SCRIPT_PATH for prev version exists"
+              STAT_SCRIPT_PATH="${CUR_DIR}/performance_tests/stat_test.py"
+              echo "Running prev version of performance test"
+              python3 $SCRIPT_PATH --dataset_path=$DATASET_PATH --output_file=$PREV_VER_PATH_CSV
+              echo "Running stat test"
+              python3 $STAT_SCRIPT_PATH --cur_csv=$CUR_VER_PATH_CSV --prev_csv=$PREV_VER_PATH_CSV
+          else
+              echo "File $SCRIPT_PATH for prev version does not exist, running current version of test: $CUR_SCRIPT_PATH"
+              STAT_SCRIPT_PATH="${CUR_VER_DIR}/performance_tests/stat_test.py"
+              echo "Running prev version of performance test"
+              python3 $CUR_SCRIPT_PATH --dataset_path=$CUR_DATASET_PATH --output_file=$PREV_VER_PATH_CSV 
+              echo "Running stat test"
+              TABLE=$(python3 $STAT_SCRIPT_PATH --cur_csv=$CUR_VER_PATH_CSV --prev_csv=$PREV_VER_PATH_CSV)
+              echo "$TABLE" >> $GITHUB_STEP_SUMMARY
+        fi
