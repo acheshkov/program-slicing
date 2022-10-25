@@ -530,30 +530,15 @@ class TestBlockSlice(TestCase):
         r = get_occupied_line_range(adg.to_ast(), if_node)
         self.assertEqual(r, ((1, 8), (4, 20)))
 
-    def test_get_duplicated_examples(self) -> None:
+    def test_duplicated_slices_enhanced_for(self) -> None:
         code = """
-        class Foo {
-            public void method () {
-            for (Integer visibilityLine : visibilityLines) {
-                    List<Integer> lineLevel = new ArrayList<>();
-                    lineLevel.add(visibilityLine);
-                }
+            for (T a : A) {
+                    stmt;
             }
-        }
         """
-        max_amount_of_effective_lines = 50
-        min_lines_emo = 4
         adg = parse(code)
-        slices = list(gen_block_slices
-                      (adg,
-                       code,
-                       [mk_max_min_ncss_filter(max_amount_of_effective_lines, min_lines_emo),
-                        at_least_one_block_stmt, last_or_next_statement_is_control]))
-        slices_with_lines = [
-            (s.line_range[0][0], s.line_range[1][0]) for s in sorted(slices, key=lambda x: (x.line_range[0][0], x.line_range[1][0]))
-        ]
-        print(slices_with_lines)
-        self.assertEqual(slices_with_lines, [(3, 6)])
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
+        self.assertCountEqual([[1, 2, 3],  [2]], bss)
 
 
 if __name__ == '__main__':
