@@ -530,6 +530,16 @@ class TestBlockSlice(TestCase):
         r = get_occupied_line_range(adg.to_ast(), if_node)
         self.assertEqual(r, ((1, 8), (4, 20)))
 
+    def test_duplicated_slices_enhanced_for(self) -> None:
+        code = """
+            for (T a : A) {
+                    stmt;
+            }
+        """
+        adg = parse(code)
+        bss = [sorted(bs.block_slice_lines()) for bs in gen_block_slices(adg, code)]
+        self.assertCountEqual([[1, 2, 3], [2]], bss)
+
 
 if __name__ == '__main__':
     main()

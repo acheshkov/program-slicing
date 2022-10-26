@@ -205,6 +205,15 @@ def get_cfg_successors(cfg: ADG, node: NodeID) -> Set[NodeID]:
     return set(list(cfg.successors(node)))
 
 
+def has_any_intersection(nodes_1: Set[NodeID], nodes_2: Set[NodeID]) -> bool:
+    if len(nodes_1) > len(nodes_2):
+        return has_any_intersection(nodes_2, nodes_1)
+    for node in nodes_1:
+        if node in nodes_2:
+            return True
+    return False
+
+
 def next_block_slice(block_slice: BlockSlice, state: State) -> Tuple[Optional[BlockSlice], BlockSliceState]:
     mb_bs_exit = block_slice.exit
     if mb_bs_exit is None:
@@ -217,6 +226,8 @@ def next_block_slice(block_slice: BlockSlice, state: State) -> Tuple[Optional[Bl
     if status == BlockSliceState.INVALID:
         return None, BlockSliceState.INVALID
     if bs is None:
+        return None, BlockSliceState.INVALID
+    if has_any_intersection(bs.nodes, block_slice.nodes):
         return None, BlockSliceState.INVALID
     next_bs = combine_block_slices(block_slice, bs)
     if next_bs.return_state == ReturnState.INCOMPLETE:
